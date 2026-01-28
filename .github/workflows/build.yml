@@ -167,7 +167,7 @@ jobs:
       - name: Build Flatpak
         uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
-          manifest-path: flatpak/com.obsproject.Studio.Plugin.SceneTreeView.yaml
+          manifest-path: com.obsproject.Studio.Plugin.SceneTreeView.yaml
           bundle: obs-scene-tree-view.flatpak
           cache-key: flatpak-builder-${{ github.sha }}
 
