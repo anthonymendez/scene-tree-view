@@ -13,6 +13,9 @@ jobs:
   build-and-release:
     name: Build and Release
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
     strategy:
       matrix:
         include:
@@ -215,7 +218,6 @@ jobs:
           cmake --build build --config Release
 
       - name: Package Plugin
-        shell: ${{ matrix.shell }}
         run: ${{ matrix.script }}
 
       - name: Upload Artifacts
