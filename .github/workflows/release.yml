@@ -266,15 +266,26 @@ jobs:
         with:
           path: artifacts
 
+      - name: List Downloaded Artifacts
+        run: |
+          echo "=== Artifact Structure ==="
+          find artifacts -type f
+          echo "========================="
+
       - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          draft: true
-          generate_release_notes: true
-          files: |
-            artifacts/**/*.zip
-            artifacts/**/*.sha256
-            artifacts/**/*.flatpak
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get all files to upload
+          FILES=$(find artifacts -type f \( -name "*.zip" -o -name "*.sha256" -o -name "*.flatpak" \))
+          
+          echo "Files to upload:"
+          echo "$FILES"
+          
+          # Create the release with all files
+          gh release create "${{ github.ref_name }}" \
+            --draft \
+            --generate-notes \
+            --title "Release ${{ github.ref_name }}" \
+            $FILES
 
