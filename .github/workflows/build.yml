@@ -155,9 +155,6 @@ jobs:
   linux-flatpak:
     name: Linux Flatpak
     runs-on: ubuntu-24.04
-    container:
-      image: bilelmoussaoui/flatpak-github-actions:kde-6.8
-      options: --privileged
     steps:
       - name: Checkout
         uses: actions/checkout@v4
