@@ -23,7 +23,7 @@ jobs:
         shell: pwsh
         run: |
           # Download pre-built OBS dependencies (obs-deps)
-          $OBS_DEPS_VERSION = "2025-07-11"
+          $OBS_DEPS_VERSION = "2025-08-23"
           $OBS_DEPS_URL = "https://github.com/obsproject/obs-deps/releases/download/${OBS_DEPS_VERSION}/windows-deps-${OBS_DEPS_VERSION}-x64.zip"
           $OBS_DEPS_FILE = "${{ github.workspace }}/obs-deps.zip"
 
@@ -44,7 +44,7 @@ jobs:
           Expand-Archive -Path $QT6_FILE -DestinationPath "${{ github.workspace }}/qt6-deps" -Force
 
           # Download OBS Studio source
-          $OBS_VERSION = "32.0.2"
+          $OBS_VERSION = "32.0.4"
           $OBS_URL = "https://github.com/obsproject/obs-studio/archive/refs/tags/${OBS_VERSION}.zip"
           $OBS_FILE = "${{ github.workspace }}/obs-studio.zip"
 
@@ -59,8 +59,8 @@ jobs:
         run: |
           # Build libobs and obs-frontend-api from source
           Write-Host "Configuring OBS Studio..."
-          cmake -S "${{ github.workspace }}/obs-studio-32.0.2" `
-            -B "${{ github.workspace }}/obs-studio-32.0.2/build" `
+          cmake -S "${{ github.workspace }}/obs-studio-32.0.4" `
+            -B "${{ github.workspace }}/obs-studio-32.0.4/build" `
             -G "Visual Studio 17 2022" -A x64 `
             -DENABLE_PLUGINS=OFF `
             -DENABLE_UI=OFF `
@@ -68,17 +68,17 @@ jobs:
             -DCMAKE_PREFIX_PATH="${{ github.workspace }}/obs-deps;${{ github.workspace }}/qt6-deps"
 
           Write-Host "Building OBS libobs (Debug)..."
-          cmake --build "${{ github.workspace }}/obs-studio-32.0.2/build" `
+          cmake --build "${{ github.workspace }}/obs-studio-32.0.4/build" `
             --config Debug --target obs-frontend-api
 
           Write-Host "Building OBS libobs (RelWithDebInfo)..."
-          cmake --build "${{ github.workspace }}/obs-studio-32.0.2/build" `
+          cmake --build "${{ github.workspace }}/obs-studio-32.0.4/build" `
             --config RelWithDebInfo --target obs-frontend-api
 
           Write-Host "Installing OBS development files..."
-          cmake --install "${{ github.workspace }}/obs-studio-32.0.2/build" `
+          cmake --install "${{ github.workspace }}/obs-studio-32.0.4/build" `
             --config Debug --prefix "${{ github.workspace }}/obs-build" --component Development
-          cmake --install "${{ github.workspace }}/obs-studio-32.0.2/build" `
+          cmake --install "${{ github.workspace }}/obs-studio-32.0.4/build" `
             --config RelWithDebInfo --prefix "${{ github.workspace }}/obs-build" --component Development
 
       - name: Build Plugin
@@ -152,6 +152,31 @@ jobs:
             dist/obs-scene-tree-view-linux-x86_64.zip
             dist/obs-scene-tree-view-linux-x86_64.zip.sha256
 
+  linux-flatpak:
+    name: Linux Flatpak
+    runs-on: ubuntu-24.04
+    container:
+      image: bilelmoussaoui/flatpak-github-actions:kde-6.8
+      options: --privileged
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build Flatpak
+        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          manifest-path: flatpak/com.obsproject.Studio.Plugin.SceneTreeView.yaml
+          bundle: obs-scene-tree-view.flatpak
+          cache-key: flatpak-builder-${{ github.sha }}
+
+      - name: Upload Flatpak
+        uses: actions/upload-artifact@v4
+        with:
+          name: obs-scene-tree-view-linux-flatpak
+          path: obs-scene-tree-view.flatpak
+
   macos:
     name: macOS Universal
     runs-on: macos-15
@@ -164,7 +189,7 @@ jobs:
       - name: Download OBS Dependencies
         run: |
           # Download pre-built OBS dependencies (obs-deps)
-          OBS_DEPS_VERSION="2025-07-11"
+          OBS_DEPS_VERSION="2025-08-23"
           OBS_DEPS_URL="https://github.com/obsproject/obs-deps/releases/download/${OBS_DEPS_VERSION}/macos-deps-${OBS_DEPS_VERSION}-universal.tar.xz"
           OBS_DEPS_FILE="${{ github.workspace }}/obs-deps.tar.xz"
 
@@ -187,7 +212,7 @@ jobs:
           tar -xJf "$QT6_FILE" -C "${{ github.workspace }}/qt6-deps"
 
           # Download OBS Studio source
-          OBS_VERSION="32.0.2"
+          OBS_VERSION="32.0.4"
           OBS_URL="https://github.com/obsproject/obs-studio/archive/refs/tags/${OBS_VERSION}.tar.gz"
           OBS_FILE="${{ github.workspace }}/obs-studio.tar.gz"
 
@@ -207,7 +232,7 @@ jobs:
           python - << 'PY'
           import pathlib
 
-          root = pathlib.Path("${{ github.workspace }}") / "obs-studio-32.0.2"
+          root = pathlib.Path("${{ github.workspace }}") / "obs-studio-32.0.4"
           cmakelists = root / "CMakeLists.txt"
           text = cmakelists.read_text()
           old = "if(OS_MACOS)\n  add_subdirectory(libobs-metal)\nendif()"
@@ -218,8 +243,8 @@ jobs:
 
           # Build libobs and obs-frontend-api from source
           echo "Configuring OBS Studio..."
-          cmake -S "${{ github.workspace }}/obs-studio-32.0.2" \
-            -B "${{ github.workspace }}/obs-studio-32.0.2/build" \
+          cmake -S "${{ github.workspace }}/obs-studio-32.0.4" \
+            -B "${{ github.workspace }}/obs-studio-32.0.4/build" \
             -G Xcode \
             -DOBS_DISABLE_METAL=ON \
             -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
@@ -230,17 +255,17 @@ jobs:
             -DCMAKE_PREFIX_PATH="${{ github.workspace }}/obs-deps;${{ github.workspace }}/qt6-deps"
 
           echo "Building OBS libobs (Debug)..."
-          cmake --build "${{ github.workspace }}/obs-studio-32.0.2/build" \
+          cmake --build "${{ github.workspace }}/obs-studio-32.0.4/build" \
             --config Debug --target obs-frontend-api
 
           echo "Building OBS libobs (RelWithDebInfo)..."
-          cmake --build "${{ github.workspace }}/obs-studio-32.0.2/build" \
+          cmake --build "${{ github.workspace }}/obs-studio-32.0.4/build" \
             --config RelWithDebInfo --target obs-frontend-api
 
           echo "Installing OBS development files..."
-          cmake --install "${{ github.workspace }}/obs-studio-32.0.2/build" \
+          cmake --install "${{ github.workspace }}/obs-studio-32.0.4/build" \
             --config Debug --prefix "${{ github.workspace }}/obs-build" --component Development
-          cmake --install "${{ github.workspace }}/obs-studio-32.0.2/build" \
+          cmake --install "${{ github.workspace }}/obs-studio-32.0.4/build" \
             --config RelWithDebInfo --prefix "${{ github.workspace }}/obs-build" --component Development
 
       - name: Build Plugin

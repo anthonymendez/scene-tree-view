@@ -1,0 +1,31 @@
+id: com.obsproject.Studio.Plugin.SceneTreeView
+branch: stable
+sdk: org.kde.Sdk
+runtime: com.obsproject.Studio
+runtime-version: stable
+build-extension: true
+separate-locales: false
+appstream-compose: false
+
+build-options:
+  prefix: /app/plugins/SceneTreeView
+  env:
+    CMAKE_BUILD_TYPE: RelWithDebInfo
+
+modules:
+  - name: obs-scene-tree-view
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=RelWithDebInfo
+      - -DBUILD_IN_OBS=OFF
+      - -DLIBOBS_PLUGIN_DESTINATION=lib/obs-plugins
+      - -DLIBOBS_PLUGIN_DATA_DESTINATION=share/obs/obs-plugins
+    post-install:
+      # Move files to extension merge directories
+      - install -d ${FLATPAK_DEST}/lib/obs-plugins
+      - install -d ${FLATPAK_DEST}/share/obs/obs-plugins
+      - mv ${FLATPAK_DEST}/lib/obs-plugins/* ${FLATPAK_DEST}/lib/ 2>/dev/null || true
+      - mv ${FLATPAK_DEST}/share/obs/obs-plugins/* ${FLATPAK_DEST}/share/ 2>/dev/null || true
+    sources:
+      - type: dir
+        path: ..
