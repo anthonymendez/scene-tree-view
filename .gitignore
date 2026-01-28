@@ -32,3 +32,6 @@ nul
 /obs-scene-tree-view-*.zip
 /obs-studio/
 /scene-tree-view-*.zip
+
+# Research and analysis (not for version control)
+/research/
