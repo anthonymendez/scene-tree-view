@@ -404,6 +404,20 @@ void ObsSceneTreeView::on_stvTree_customContextMenuRequested(const QPoint &pos)
 
 			copyFilters->setEnabled(obs_source_filter_count(source) > 0);
 		}
+		else if(item->type() == StvItemModel::FOLDER)
+		{
+			popup.addSeparator();
+
+			// Rename folder
+			QAction *rename = popup.addAction(QTStr("Rename"));
+			QObject::connect(rename, SIGNAL(triggered()), this->_stv_dock.stvTree, SLOT(EditSelectedItem()));
+
+			// Remove folder (and all contents)
+			auto removeFolder = [this, item]() {
+				this->RemoveFolder(item);
+			};
+			popup.addAction(QTStr("Remove"), removeFolder);
+		}
 
 		popup.addSeparator();
 
