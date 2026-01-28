@@ -276,8 +276,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -e  # Exit on error
+          
           # Delete existing release if it exists (draft releases from failed attempts)
-          gh release delete "${{ github.ref_name }}" --yes 2>/dev/null || true
+          # Use subshell to prevent set -e from triggering on expected failure
+          (gh release delete "${{ github.ref_name }}" --yes 2>/dev/null) || echo "No existing release to delete"
           
           # Get all files to upload
           FILES=$(find artifacts -type f \( -name "*.zip" -o -name "*.sha256" -o -name "*.flatpak" \))
@@ -285,10 +288,18 @@ jobs:
           echo "Files to upload:"
           echo "$FILES"
           
+          if [ -z "$FILES" ]; then
+            echo "ERROR: No files found to upload!"
+            exit 1
+          fi
+          
           # Create the release with all files
+          # shellcheck disable=SC2086
           gh release create "${{ github.ref_name }}" \
             --draft \
             --generate-notes \
             --title "Release ${{ github.ref_name }}" \
             $FILES
+          
+          echo "Release created successfully!"
 
