@@ -276,6 +276,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Delete existing release if it exists (draft releases from failed attempts)
+          gh release delete "${{ github.ref_name }}" --yes 2>/dev/null || true
+          
           # Get all files to upload
           FILES=$(find artifacts -type f \( -name "*.zip" -o -name "*.sha256" -o -name "*.flatpak" \))
           
