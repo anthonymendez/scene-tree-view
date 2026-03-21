@@ -417,6 +417,29 @@ void ObsSceneTreeView::on_stvTree_customContextMenuRequested(const QPoint &pos)
 				this->RemoveFolder(item);
 			};
 			popup.addAction(QTStr("Remove"), removeFolder);
+
+			popup.addSeparator();
+
+			// Add an action to sort the folder's contents in ascending alphabetical order.
+			// This lambda captures 'item' (which represents the folder) and uses
+			// Qt's built-in QStandardItem::sortChildren method. It sorts the items based
+			// on their text (column 0) in ascending order (A to Z).
+			// After the local tree model is sorted, 'SaveSceneTree' is called to persist
+			// the new order to the scene tree JSON configuration so it survives restarts.
+			auto sortFolderAsc = [this, item]() {
+				item->sortChildren(0, Qt::AscendingOrder);
+				this->SaveSceneTree(this->_scene_collection_name);
+			};
+			popup.addAction(obs_module_text("SceneTreeView.SortAscending"), sortFolderAsc);
+
+			// Add an action to sort the folder's contents in descending alphabetical order.
+			// Similar to the ascending sort, this sorts the folder 'item' children in 
+			// descending order (Z to A) using column 0 and then saves the updated layout.
+			auto sortFolderDesc = [this, item]() {
+				item->sortChildren(0, Qt::DescendingOrder);
+				this->SaveSceneTree(this->_scene_collection_name);
+			};
+			popup.addAction(obs_module_text("SceneTreeView.SortDescending"), sortFolderDesc);
 		}
 
 		popup.addSeparator();
