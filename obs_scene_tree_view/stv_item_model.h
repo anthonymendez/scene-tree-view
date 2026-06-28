@@ -202,6 +202,9 @@ class StvItemModel : public QStandardItemModel {
 
   // Recursively applies the given icon to child nodes matching the item type.
   void SetIcon(const QIcon& icon, QItemType item_type, QStandardItem* item);
+
+  // Recursively searches for an unassociated scene placeholder matching the name.
+  QStandardItem* FindPendingSceneItem(QStandardItem* parent, const QString& name);
 };
 
 // Translates the given text key using OBS locale string lookup system.

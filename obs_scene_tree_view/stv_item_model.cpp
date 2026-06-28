@@ -161,8 +161,23 @@ void StvItemModel::UpdateTree(obs_frontend_source_list& scene_list,
 
       obs_weak_source_release(weak);
     } else {
-      // If not in tree, add it.
-      scene_it = new_scene_tree.emplace(weak, nullptr).first;
+      QStandardItem* pending_item = FindPendingSceneItem(
+          invisibleRootItem(), obs_source_get_name(source));
+      if (pending_item) {
+        pending_item->setData(QVariant::fromValue(ObsWeakSourcePtr({weak})),
+                              kObsScene);
+        scene_it = new_scene_tree.emplace(weak, pending_item).first;
+
+        QMainWindow* main_window =
+            reinterpret_cast<QMainWindow*>(obs_frontend_get_main_window());
+        QIcon icon = config_get_bool(obs_frontend_get_user_config(),
+                                     "SceneTreeView", "ShowSceneIcons")
+                         ? main_window->property("sceneIcon").value<QIcon>()
+                         : QIcon();
+        pending_item->setIcon(icon);
+      } else {
+        scene_it = new_scene_tree.emplace(weak, nullptr).first;
+      }
     }
 
     weak = nullptr;
@@ -548,9 +563,16 @@ OBSDataAutoRelease StvItemModel::SerializeItem(QStandardItem& item,
   } else {
     obs_weak_source_t* weak =
         item.data(QDataRole::kObsScene).value<ObsWeakSourcePtr>().ptr;
-    OBSSourceAutoRelease source = OBSGetStrongRef(weak);
-    obs_data_set_string(item_data, kSceneTreeConfigItemNameData.data(),
-                        obs_source_get_name(source));
+    if (!weak) {
+      // Placeholder scene not yet resolved — serialize using stored text name
+      // to avoid losing its position in the hierarchy.
+      obs_data_set_string(item_data, kSceneTreeConfigItemNameData.data(),
+                          item.text().toStdString().c_str());
+    } else {
+      OBSSourceAutoRelease source = OBSGetStrongRef(weak);
+      obs_data_set_string(item_data, kSceneTreeConfigItemNameData.data(),
+                          obs_source_get_name(source));
+    }
   }
   return item_data;
 }
@@ -616,15 +638,11 @@ void StvItemModel::LoadFolderArray(
 
     // Check if this is folder or scene item (only folders have sub_folder_data).
     if (!sub_folder_data) {
-      // Add scene to folder, skip if scene doesn't exist anymore.
       OBSSceneAutoRelease scene = obs_get_scene_by_name(item_name);
-      if (!scene || !IsManagedScene(scene)) {
-        continue;
-      }
-
-      {
+      obs_weak_source_t* weak = nullptr;
+      if (scene && IsManagedScene(scene)) {
         OBSSource source = obs_scene_get_source(scene);
-        OBSWeakSource weak = obs_source_get_weak_source(source);
+        weak = obs_source_get_weak_source(source);
 
         // Skip if scene already in treeview.
         // (see issue https://github.com/DigitOtter/obs_scene_tree_view/issues/19)
@@ -632,10 +650,12 @@ void StvItemModel::LoadFolderArray(
           obs_weak_source_release(weak);
           continue;
         }
+      }
 
-        StvSceneItem* new_scene_item = new StvSceneItem(item_name, weak);
-        folder.appendRow(new_scene_item);
+      StvSceneItem* new_scene_item = new StvSceneItem(item_name, weak);
+      folder.appendRow(new_scene_item);
 
+      if (weak) {
         scenes_in_tree_.emplace(weak, new_scene_item);
       }
     } else {
@@ -778,6 +798,35 @@ void StvItemModel::AddChildToUserOrder(QStandardItem* parent,
       parent->setData(user_list, kUserOrder);
     }
   }
+}
+
+QStandardItem* StvItemModel::FindPendingSceneItem(QStandardItem* parent,
+                                                  const QString& name) {
+  if (!parent) {
+    return nullptr;
+  }
+
+  for (int i = 0; i < parent->rowCount(); ++i) {
+    QStandardItem* child = parent->child(i);
+    if (!child) {
+      continue;
+    }
+
+    if (child->type() == kScene) {
+      obs_weak_source_t* weak =
+          child->data(QDataRole::kObsScene).value<ObsWeakSourcePtr>().ptr;
+      if (weak == nullptr && child->text() == name) {
+        return child;
+      }
+    } else if (child->type() == kFolder) {
+      QStandardItem* found = FindPendingSceneItem(child, name);
+      if (found) {
+        return found;
+      }
+    }
+  }
+
+  return nullptr;
 }
 
 }  // namespace scene_tree_view

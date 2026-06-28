@@ -19,6 +19,8 @@
 #include <QtWidgets/QTextBrowser>
 #include <QtWidgets/QVBoxLayout>
 #include <QtWidgets/QWidgetAction>
+#include <QtWidgets/QLabel>
+#include <QTimer>
 
 #include <obs-frontend-api.h>
 #include <obs-module.h>
@@ -165,6 +167,38 @@ ObsSceneTreeView::ObsSceneTreeView(QMainWindow* main_window)
   stv_dock_.stvTree->setDefaultDropAction(Qt::DropAction::MoveAction);
 
   stv_dock_.stvTree->setModel(&scene_tree_items_);
+
+  // Initialize the loading label overlay.
+  loading_label_ = new QLabel(stv_dock_.stvTree);
+  loading_label_->setAlignment(Qt::AlignCenter);
+  loading_label_->setStyleSheet(
+      "QLabel {"
+      "  font-size: 16px;"
+      "  color: palette(text);"
+      "  background: transparent;"
+      "}");
+  loading_label_->setVisible(false);
+
+  // Animation timer to cycle dots every 400ms.
+  loading_timer_ = new QTimer(this);
+  loading_timer_->setInterval(400);
+  QObject::connect(loading_timer_, &QTimer::timeout, this, [this]() {
+    loading_dots_count_ = (loading_dots_count_ + 1) % 4;
+    QString dots = QString(loading_dots_count_, '.');
+    const char* t = obs_module_text("SceneTreeView.Loading");
+    QString base = QString::fromUtf8(t ? t : "Loading");
+    loading_label_->setText(base + dots);
+    // Keep label filling the tree viewport.
+    loading_label_->setGeometry(stv_dock_.stvTree->viewport()->rect());
+  });
+
+  // Safeguard timeout (3 seconds) to force-hide loading if scenes never resolve.
+  loading_timeout_ = new QTimer(this);
+  loading_timeout_->setSingleShot(true);
+  loading_timeout_->setInterval(3000);
+  QObject::connect(loading_timeout_, &QTimer::timeout, this, [this]() {
+    HideLoadingScreen();
+  });
   QObject::connect(&scene_tree_items_, &QStandardItemModel::rowsInserted, this,
                    [this](const QModelIndex&, int, int) {
                      if (scene_collection_name_) {
@@ -224,8 +258,15 @@ ObsSceneTreeView::~ObsSceneTreeView() {
 
 void ObsSceneTreeView::SaveSceneTree(const char* scene_collection) {
   if (!scene_collection) {
+    blog(LOG_INFO, "[%s] SaveSceneTree: skipped (null collection)",
+         obs_module_name());
     return;
   }
+
+  int item_count = scene_tree_items_.invisibleRootItem()->rowCount();
+  blog(LOG_INFO, "[%s] SaveSceneTree: collection='%s', root_items=%d, pending=%s",
+       obs_module_name(), scene_collection, item_count,
+       HasUnassociatedScenes() ? "true" : "false");
 
   BPtr<char> stv_config_file_path =
       obs_module_config_path(kSceneTreeConfigFile.data());
@@ -247,6 +288,8 @@ void ObsSceneTreeView::SaveSceneTree(const char* scene_collection) {
 
 void ObsSceneTreeView::LoadSceneTree(const char* scene_collection) {
   assert(scene_collection);
+  blog(LOG_INFO, "[%s] LoadSceneTree: collection='%s'",
+       obs_module_name(), scene_collection);
 
   BPtr<char> stv_config_file_path =
       obs_module_config_path(kSceneTreeConfigFile.data());
@@ -257,17 +300,40 @@ void ObsSceneTreeView::LoadSceneTree(const char* scene_collection) {
   scene_tree_items_.LoadSceneTree(stv_data, scene_collection,
                                   stv_dock_.stvTree);
   scene_tree_items_.blockSignals(false);
+
+  int item_count = scene_tree_items_.invisibleRootItem()->rowCount();
+  bool pending = HasUnassociatedScenes();
+  blog(LOG_INFO, "[%s] LoadSceneTree: loaded %d root items, pending=%s",
+       obs_module_name(), item_count, pending ? "true" : "false");
+
+  // Show loading screen if there are unresolved placeholder scenes.
+  if (pending) {
+    ShowLoadingScreen();
+  }
 }
 
 void ObsSceneTreeView::UpdateTreeView() {
   obs_frontend_source_list scene_list = {};
   obs_frontend_get_scenes(&scene_list);
 
+  blog(LOG_INFO, "[%s] UpdateTreeView: scene_count=%zu",
+       obs_module_name(), scene_list.sources.num);
+
   scene_tree_items_.blockSignals(true);
   scene_tree_items_.UpdateTree(scene_list, stv_dock_.stvTree->currentIndex());
   scene_tree_items_.blockSignals(false);
 
   obs_frontend_source_list_free(&scene_list);
+
+  int item_count = scene_tree_items_.invisibleRootItem()->rowCount();
+  bool pending = HasUnassociatedScenes();
+  blog(LOG_INFO, "[%s] UpdateTreeView: root_items=%d, pending=%s",
+       obs_module_name(), item_count, pending ? "true" : "false");
+
+  // Hide loading screen once all placeholders are resolved.
+  if (!pending) {
+    HideLoadingScreen();
+  }
 
   SaveSceneTree(scene_collection_name_);
 }
@@ -930,16 +996,25 @@ void ObsSceneTreeView::ObsFrontendEvent(enum obs_frontend_event event) {
              event == OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED) {
     SelectCurrentScene();
   } else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP) {
-    scene_tree_items_.CleanupSceneTree();
+    blog(LOG_INFO, "[%s] EVENT: SCENE_COLLECTION_CLEANUP", obs_module_name());
+    // Null the name BEFORE cleanup so that rowsRemoved signals
+    // don't trigger SaveSceneTree with an empty tree.
     scene_collection_name_ = nullptr;
+    scene_tree_items_.CleanupSceneTree();
   } else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING) {
+    blog(LOG_INFO, "[%s] EVENT: SCENE_COLLECTION_CHANGING (saving '%s')",
+         obs_module_name(), scene_collection_name_ ? scene_collection_name_.Get() : "(null)");
     SaveSceneTree(scene_collection_name_);
   } else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED) {
     scene_collection_name_ = obs_frontend_get_current_scene_collection();
+    blog(LOG_INFO, "[%s] EVENT: SCENE_COLLECTION_CHANGED to '%s'",
+         obs_module_name(), scene_collection_name_ ? scene_collection_name_.Get() : "(null)");
     LoadSceneTree(scene_collection_name_);
     UpdateTreeView();
   } else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_RENAMED) {
     scene_collection_name_ = obs_frontend_get_current_scene_collection();
+    blog(LOG_INFO, "[%s] EVENT: SCENE_COLLECTION_RENAMED to '%s'",
+         obs_module_name(), scene_collection_name_ ? scene_collection_name_.Get() : "(null)");
     SaveSceneTree(scene_collection_name_);
     UpdateTreeView();
   }
@@ -996,6 +1071,58 @@ void ObsSceneTreeView::UpdateMoveButtonsEnabled() {
   }
   stv_dock_.stvMoveUp->setEnabled(enableUp);
   stv_dock_.stvMoveDown->setEnabled(enableDown);
+}
+
+void ObsSceneTreeView::ShowLoadingScreen() {
+  stv_dock_.stvTree->setVisible(false);
+  loading_label_->setParent(stv_dock_.frame);
+  loading_label_->setGeometry(stv_dock_.frame->rect());
+  loading_label_->setVisible(true);
+  loading_dots_count_ = 0;
+  const char* t = obs_module_text("SceneTreeView.Loading");
+  loading_label_->setText(QString::fromUtf8(t ? t : "Loading"));
+  loading_timer_->start();
+  loading_timeout_->start();
+}
+
+void ObsSceneTreeView::HideLoadingScreen() {
+  loading_timer_->stop();
+  loading_timeout_->stop();
+  loading_label_->setVisible(false);
+  loading_label_->setParent(stv_dock_.stvTree);
+  stv_dock_.stvTree->setVisible(true);
+}
+
+bool ObsSceneTreeView::HasUnassociatedScenes() const {
+  return HasUnassociatedScenesHelper(
+      scene_tree_items_.invisibleRootItem());
+}
+
+bool ObsSceneTreeView::HasUnassociatedScenesHelper(
+    QStandardItem* parent) const {
+  if (!parent) {
+    return false;
+  }
+  for (int i = 0; i < parent->rowCount(); ++i) {
+    QStandardItem* child = parent->child(i);
+    if (!child) {
+      continue;
+    }
+    if (child->type() == StvItemModel::kScene) {
+      obs_weak_source_t* weak =
+          child->data(StvItemModel::kObsScene)
+              .value<ObsWeakSourcePtr>()
+              .ptr;
+      if (weak == nullptr) {
+        return true;
+      }
+    } else if (child->type() == StvItemModel::kFolder) {
+      if (HasUnassociatedScenesHelper(child)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 }  // namespace scene_tree_view

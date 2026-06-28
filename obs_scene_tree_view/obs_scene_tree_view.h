@@ -10,7 +10,9 @@
 #include <string_view>
 
 #include <QAbstractItemDelegate>
+#include <QtWidgets/QLabel>
 #include <QtWidgets/QWidget>
+#include <QTimer>
 
 #include <obs-data.h>
 #include <util/util.hpp>
@@ -87,6 +89,17 @@ class ObsSceneTreeView : public QWidget {
 
   // Cached name of the active OBS scene collection.
   BPtr<char> scene_collection_name_ = nullptr;
+
+  // Loading screen components
+  QLabel* loading_label_ = nullptr;
+  QTimer* loading_timer_ = nullptr;
+  QTimer* loading_timeout_ = nullptr;
+  int loading_dots_count_ = 0;
+
+  void ShowLoadingScreen();
+  void HideLoadingScreen();
+  bool HasUnassociatedScenes() const;
+  bool HasUnassociatedScenesHelper(QStandardItem* parent) const;
 
   // Selects and focuses the active OBS scene in the tree widget.
   void SelectCurrentScene();
