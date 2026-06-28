@@ -19,7 +19,7 @@
 #include <util/platform.h>
 
 OBS_DECLARE_MODULE();
-OBS_MODULE_AUTHOR("Anthony, TheThirdRail, John Titor, DigitOtter, Marcelo dos Santos Mafra, & contributors");
+OBS_MODULE_AUTHOR("Anthony Mendez, TheThirdRail, John Titor, DigitOtter, Marcelo dos Santos Mafra, & contributors");
 OBS_MODULE_USE_DEFAULT_LOCALE(PROJECT_DATA_FOLDER, "en-US");
 
 // Global dock pointer and registration status for retry logic
@@ -921,7 +921,7 @@ void ObsSceneTreeView::ObsFrontendEvent(enum obs_frontend_event event) {
           mb.setTextInteractionFlags(Qt::TextBrowserInteraction);
           mb.setText(QString("<h3>%1</h3>"
                               "<p><b>Version:</b> %2</p>"
-                              "<p><b>Authors:</b> Anthony, TheThirdRail, John Titor, DigitOtter, Marcelo dos Santos Mafra, & contributors</p>"
+                              "<p><b>Authors:</b> Anthony Mendez, TheThirdRail, John Titor, DigitOtter, Marcelo dos Santos Mafra, & contributors</p>"
                               "<p><b>GitHub:</b> <a href=\"https://github.com/TheThirdRail/obs_scene_tree_view\">https://github.com/TheThirdRail/obs_scene_tree_view</a></p>")
                       .arg(obs_module_name())
                       .arg(PROJECT_VERSION));
