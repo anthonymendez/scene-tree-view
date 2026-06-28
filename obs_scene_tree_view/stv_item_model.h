@@ -1,130 +1,198 @@
-#ifndef STV_ITEM_MODEL_H
-#define STV_ITEM_MODEL_H
+// Copyright (c) 2026 Anthony Mendez. All rights reserved.
+// Use of this source code is governed by the GPL-2.0 license that can be
+// found in the LICENSE file.
 
-#include <obs-frontend-api.h>
-#include <obs-module.h>
-#include <obs.hpp>
+#ifndef OBS_SCENE_TREE_VIEW_STV_ITEM_MODEL_H_
+#define OBS_SCENE_TREE_VIEW_STV_ITEM_MODEL_H_
+
+#include <list>
+#include <map>
+#include <string_view>
 
 #include <QStandardItemModel>
 #include <QTreeView>
 #include <QtWidgets/QMainWindow>
 
-#include <string_view>
+#include <obs-frontend-api.h>
+#include <obs-module.h>
+#include <obs.hpp>
 
-struct obs_weak_source_ptr {
-  obs_weak_source_t *ptr;
+namespace scene_tree_view {
+
+// Wrapper struct for obs_weak_source_t to allow its usage in QVariant metatype.
+struct ObsWeakSourcePtr {
+  obs_weak_source_t* ptr;
 };
 
-Q_DECLARE_METATYPE(obs_weak_source_ptr);
+}  // namespace scene_tree_view
 
+Q_DECLARE_METATYPE(scene_tree_view::ObsWeakSourcePtr);
+
+namespace scene_tree_view {
+
+// Standard item representing a folder node in the scene tree view.
 class StvFolderItem : public QStandardItem {
-public:
-  StvFolderItem(const QString &text);
-  virtual ~StvFolderItem() override = default;
+ public:
+  // Creates a new folder item with the given display text.
+  explicit StvFolderItem(const QString& text);
+  ~StvFolderItem() override = default;
+
+  // Returns the custom item type code.
   int type() const override;
 };
 
+// Standard item representing an OBS scene node in the scene tree view.
 class StvSceneItem : public QStandardItem {
-public:
-  StvSceneItem(const QString &text, obs_weak_source_t *weak);
-  virtual ~StvSceneItem() override = default;
+ public:
+  // Creates a new scene item with the given display text and weak source reference.
+  StvSceneItem(const QString& text, obs_weak_source_t* weak);
+  ~StvSceneItem() override = default;
+
+  // Returns the custom item type code.
   int type() const override;
 };
 
+// Item model representing the scene and folder hierarchy for the custom dock.
+// Handles data serialization/deserialization to config files, drag-and-drop
+// MIME type formatting, and syncing with the active OBS scene collections.
 class StvItemModel : public QStandardItemModel {
   Q_OBJECT
 
-  struct SCENE_SIZE_T {
-    uint32_t cx, cy;
+  // Structure representing the base dimensions of the scenes.
+  struct SceneSize {
+    uint32_t cx;
+    uint32_t cy;
   };
 
-  static constexpr std::string_view MIME_TYPE = "application/x-stvindexlist";
-  static constexpr std::string_view SCENE_TREE_CONFIG_FOLDER_DATA = "folder";
-  static constexpr std::string_view SCENE_TREE_CONFIG_FOLDER_EXPANDED =
-      "is_expanded";
-  static constexpr std::string_view SCENE_TREE_CONFIG_ITEM_NAME_DATA = "name";
+  // MIME type string for serializing drag-and-drop index data.
+  static constexpr std::string_view kMimeType = "application/x-stvindexlist";
 
-public:
-  enum QDATA_ROLE { OBS_SCENE = Qt::UserRole };
+  // Configuration JSON keys.
+  static constexpr std::string_view kSceneTreeConfigFolderData = "folder";
+  static constexpr std::string_view kSceneTreeConfigFolderExpanded = "is_expanded";
+  static constexpr std::string_view kSceneTreeConfigItemNameData = "name";
 
-  enum QITEM_TYPE { FOLDER = QStandardItem::UserType + 1, SCENE };
+ public:
+  // Custom roles for standard item data lookup.
+  enum QDataRole { kObsScene = Qt::UserRole };
+
+  // Custom standard item type identifiers.
+  enum QItemType { kFolder = QStandardItem::UserType + 1, kScene };
 
   StvItemModel();
-  virtual ~StvItemModel() override;
+  ~StvItemModel() override;
 
+  // Returns the MIME types supported by this model.
   QStringList mimeTypes() const override;
-  QMimeData *mimeData(const QModelIndexList &indexes) const override;
-  bool dropMimeData(const QMimeData *data, Qt::DropAction action, int row,
-                    int column, const QModelIndex &parent) override;
 
-  void UpdateTree(obs_frontend_source_list &scene_list,
-                  const QModelIndex &selected_index);
+  // Serializes the dragged indexes into MIME data payload.
+  QMimeData* mimeData(const QModelIndexList& indexes) const override;
 
-  bool CheckFolderNameUniqueness(const QString &name, QStandardItem *parent,
-                                 QStandardItem *item_to_skip = nullptr);
+  // Deserializes and handles dropping of MIME data payload at the given location.
+  bool dropMimeData(const QMimeData* data, Qt::DropAction action, int row,
+                    int column, const QModelIndex& parent) override;
 
-  void SetSelectedScene(QStandardItem *item, bool set_preview_scene,
+  // Synchronizes the item model tree with the active OBS scene list.
+  void UpdateTree(obs_frontend_source_list& scene_list,
+                  const QModelIndex& selected_index);
+
+  // Verifies that a folder name is unique within its parent hierarchy.
+  bool CheckFolderNameUniqueness(const QString& name, QStandardItem* parent,
+                                 QStandardItem* item_to_skip = nullptr);
+
+  // Selects/activates the given scene in OBS Studio.
+  void SetSelectedScene(QStandardItem* item, bool set_preview_scene,
                         bool force_set_scene = false);
-  QStandardItem *GetCurrentSceneItem();
+
+  // Returns the standard item associated with the current active OBS scene.
+  QStandardItem* GetCurrentSceneItem();
+
+  // Returns a reference to the active OBS scene source.
   OBSSourceAutoRelease GetCurrentScene();
 
-  void SaveSceneTree(obs_data_t *root_folder_data, const char *scene_collection,
-                     QTreeView *view);
-  void LoadSceneTree(obs_data_t *root_folder_data, const char *scene_collection,
-                     QTreeView *view);
+  // Serializes and saves the scene hierarchy into the JSON configuration profile.
+  void SaveSceneTree(obs_data_t* root_folder_data, const char* scene_collection,
+                     QTreeView* view);
+
+  // Deserializes and loads the scene hierarchy from the JSON configuration profile.
+  void LoadSceneTree(obs_data_t* root_folder_data, const char* scene_collection,
+                     QTreeView* view);
+
+  // Clears and releases all internal scene references and folder items.
   void CleanupSceneTree();
 
-  QStandardItem *GetParentOrRoot(const QModelIndex &index);
+  // Returns the parent item or the invisible root item for the given index.
+  QStandardItem* GetParentOrRoot(const QModelIndex& index);
 
-  QString CreateUniqueFolderName(QStandardItem *folder_item,
-                                 QStandardItem *parent);
+  // Generates a unique folder name within the parent to avoid naming collisions.
+  QString CreateUniqueFolderName(QStandardItem* folder_item,
+                                 QStandardItem* parent);
 
-  void SetIconVisibility(bool enable_visibility, QITEM_TYPE item_type);
+  // Changes the visibility status of folders or scene icons.
+  void SetIconVisibility(bool enable_visibility, QItemType item_type);
   void SetSceneIconVisibility(bool enable_visibility);
   void SetFolderIconVisibility(bool enable_visibility);
 
+  // Retrieves and caches current video canvas base dimensions.
   void UpdateSceneSize();
-  bool IsManagedScene(obs_scene_t *scene) const;
-  bool IsManagedScene(obs_source_t *scene_source) const;
 
-  bool MoveIndexByOne(const QModelIndex &index, int delta);
+  // Validates if the given scene conforms to cached canvas size requirements.
+  bool IsManagedScene(obs_scene_t* scene) const;
+  bool IsManagedScene(obs_source_t* scene_source) const;
 
-private:
-  struct mime_item_data_t {
-    QITEM_TYPE Type;
-    void *Data; // Either QStandardItem* (if Type == FOLDER) or
-                // obs_weak_source_t* (if Type == SCENE)
+  // Reorders items in the model by shifting the item at the index by the delta.
+  bool MoveIndexByOne(const QModelIndex& index, int delta);
+
+ private:
+  // Data payload representation for MIME drag-and-drop indexes.
+  struct MimeItemData {
+    QItemType type;
+    void* data;  // Either QStandardItem* (if type == kFolder) or
+                 // obs_weak_source_t* (if type == kScene)
   };
 
+  // Comparer struct to compare weak source pointers by their strong references.
   struct SceneComp {
-    bool operator()(obs_weak_source_t *x, obs_weak_source_t *y) const {
+    bool operator()(obs_weak_source_t* x, obs_weak_source_t* y) const {
       return OBSGetStrongRef(x).Get() < OBSGetStrongRef(y).Get();
     }
   };
+
   using source_map_t =
-      std::map<obs_weak_source_t *, QStandardItem *, SceneComp>;
+      std::map<obs_weak_source_t*, QStandardItem*, SceneComp>;
 
-  source_map_t _scenes_in_tree;
+  // Map of active OBS scene weak references to their corresponding UI item.
+  source_map_t scenes_in_tree_;
 
-  SCENE_SIZE_T _scene_size;
+  // Cached canvas size properties.
+  SceneSize scene_size_;
 
-  void MoveSceneItem(obs_weak_source_t *source, int row,
-                     QStandardItem *parent_item);
-  void MoveSceneFolder(QStandardItem *item, int row,
-                       QStandardItem *parent_item);
+  // Moves the scene standard item to a new parent row position.
+  void MoveSceneItem(obs_weak_source_t* source, int row,
+                     QStandardItem* parent_item);
 
-  obs_data_array_t *CreateFolderArray(QStandardItem &folder, QTreeView *view);
-  void LoadFolderArray(obs_data_array_t *folder_data, QStandardItem &folder,
-                       std::list<StvFolderItem *> &expandable_folders);
+  // Moves the folder item recursively to a new parent row position.
+  void MoveSceneFolder(QStandardItem* item, int row,
+                       QStandardItem* parent_item);
 
-  void SetIcon(const QIcon &icon, QITEM_TYPE item_type, QStandardItem *item);
+  // Creates and populates an array with serialized folder hierarchy details.
+  obs_data_array_t* CreateFolderArray(QStandardItem& folder, QTreeView* view);
+
+  // Parses and recreates folders and scene nodes from a configuration array.
+  void LoadFolderArray(obs_data_array_t* folder_data, QStandardItem& folder,
+                       std::list<StvFolderItem*>& expandable_folders);
+
+  // Recursively applies the given icon to child nodes matching the item type.
+  void SetIcon(const QIcon& icon, QItemType item_type, QStandardItem* item);
 };
 
-// Use OBS locale for translation
-inline QString QTStr(const char *text,
-                     QMainWindow *main_window = reinterpret_cast<QMainWindow *>(
+// Translates the given text key using OBS locale string lookup system.
+inline QString QTStr(const char* text,
+                     QMainWindow* main_window = reinterpret_cast<QMainWindow*>(
                          obs_frontend_get_main_window())) {
   return main_window->tr(text);
 }
 
-#endif // STV_ITEM_MODEL_H
+}  // namespace scene_tree_view
+
+#endif  // OBS_SCENE_TREE_VIEW_STV_ITEM_MODEL_H_
