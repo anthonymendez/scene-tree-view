@@ -9,15 +9,17 @@
 #include <QtWidgets/QListWidget>
 #include <QtWidgets/QMainWindow>
 #include <QtWidgets/QMenu>
+#include <QtWidgets/QMessageBox>
 #include <QtWidgets/QSpinBox>
 #include <QtWidgets/QWidgetAction>
+
 
 #include <obs-frontend-api.h>
 #include <obs-module.h>
 #include <util/platform.h>
 
 OBS_DECLARE_MODULE();
-OBS_MODULE_AUTHOR("DigitOtter");
+OBS_MODULE_AUTHOR("Anthony, TheThirdRail, John Titor, DigitOtter, Marcelo dos Santos Mafra, & contributors");
 OBS_MODULE_USE_DEFAULT_LOCALE(PROJECT_DATA_FOLDER, "en-US");
 
 // Global dock pointer and registration status for retry logic
@@ -738,6 +740,31 @@ void ObsSceneTreeView::ObsFrontendEvent(enum obs_frontend_event event) {
     this->_stv_dock.stvMoveUp->setEnabled(true);
     this->_stv_dock.stvMoveDown->setEnabled(true);
     this->UpdateMoveButtonsEnabled();
+
+    // Add dropdown menu item under Tools menu
+    static bool tools_menu_added = false;
+    if (!tools_menu_added) {
+      tools_menu_added = true;
+      QAction *about_action = static_cast<QAction *>(
+          obs_frontend_add_tools_menu_qaction(obs_module_name()));
+      if (about_action) {
+        connect(about_action, &QAction::triggered, this, [this]() {
+          QMainWindow *main_window =
+              reinterpret_cast<QMainWindow *>(obs_frontend_get_main_window());
+          QMessageBox mb(main_window);
+          mb.setWindowTitle(obs_module_name());
+          mb.setTextFormat(Qt::RichText);
+          mb.setTextInteractionFlags(Qt::TextBrowserInteraction);
+          mb.setText(QString("<h3>%1</h3>"
+                              "<p><b>Version:</b> %2</p>"
+                              "<p><b>Authors:</b> Anthony, TheThirdRail, John Titor, DigitOtter, Marcelo dos Santos Mafra, & contributors</p>"
+                              "<p><b>GitHub:</b> <a href=\"https://github.com/TheThirdRail/obs_scene_tree_view\">https://github.com/TheThirdRail/obs_scene_tree_view</a></p>")
+                      .arg(obs_module_name())
+                      .arg(PROJECT_VERSION));
+          mb.exec();
+        });
+      }
+    }
 
   } else if (event == OBS_FRONTEND_EVENT_THEME_CHANGED) {
     // Reapply icons and theme classes when user switches themes at runtime
