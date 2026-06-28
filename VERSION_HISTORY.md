@@ -4,6 +4,11 @@ This document tracks the main updates, fixes, and changes made to the Scene Tree
 
 ---
 
+### v0.2.5
+* **Author**: Anthony Mendez
+- **Animated Loading Screen**: Added a beautiful visual loading screen (`Loading...` with cycling ellipsis) that displays while the folder structure and scene tree lazy-load asynchronously.
+- **Race Condition Prevention**: Prevents transient empty tree layouts from flashing or overwriting save files during startup/collection switches.
+
 ### v0.2.4
 * **Author**: Anthony Mendez
 - **Multi-Selection & Group Move**: Added support for selecting multiple scenes/folders (`Ctrl`/`Shift` multi-selection) to drag-and-drop or move them as a group.
