@@ -12,73 +12,68 @@
 #include "obs_scene_tree_view/stv_item_model.h"
 #include "ui_scene_tree_view.h"
 
-class ObsSceneTreeView
-        : public QWidget
-{
-		Q_OBJECT
+class ObsSceneTreeView : public QWidget {
+  Q_OBJECT
 
-	public:
-		static constexpr std::string_view SCENE_TREE_CONFIG_FILE = "scene_tree.json";
+public:
+  static constexpr std::string_view SCENE_TREE_CONFIG_FILE = "scene_tree.json";
 
-		ObsSceneTreeView(QMainWindow *main_window);
-		virtual ~ObsSceneTreeView() override;
+  ObsSceneTreeView(QMainWindow *main_window);
+  virtual ~ObsSceneTreeView() override;
 
-		void SaveSceneTree(const char *scene_collection);
-		void LoadSceneTree(const char *scene_collection);
+  void SaveSceneTree(const char *scene_collection);
+  void LoadSceneTree(const char *scene_collection);
 
-	protected slots:
-		void UpdateTreeView();
+protected slots:
+  void UpdateTreeView();
 
-		void on_toggleListboxToolbars(bool visible);
+  void on_toggleListboxToolbars(bool visible);
 
-		void on_stvAddFolder_clicked();
-		void on_stvRemove_released();
+  void on_stvAddFolder_clicked();
+  void on_stvRemove_released();
 
+  void on_stvMoveUp_released();
+  void on_stvMoveDown_released();
+  void UpdateMoveButtonsEnabled();
 
-			void on_stvMoveUp_released();
-			void on_stvMoveDown_released();
-			void UpdateMoveButtonsEnabled();
+  // Copied from OBS, OBSBasic::on_scenes_customContextMenuRequested()
+  void on_stvTree_customContextMenuRequested(const QPoint &pos);
 
+  void on_SceneNameEdited(QWidget *editor);
 
+private:
+  QAction *_add_scene_act = nullptr;
+  QAction *_remove_scene_act = nullptr;
+  QAction *_toggle_toolbars_scene_act = nullptr;
 
-		// Copied from OBS, OBSBasic::on_scenes_customContextMenuRequested()
-		void on_stvTree_customContextMenuRequested(const QPoint &pos);
+  QAction *_move_scene_up_act = nullptr;
+  QAction *_move_scene_down_act = nullptr;
 
-		void on_SceneNameEdited(QWidget *editor);
+  std::unique_ptr<QMenu> _per_scene_transition_menu;
 
+  Ui::STVDock _stv_dock;
 
+  StvItemModel _scene_tree_items;
+  BPtr<char> _scene_collection_name = nullptr;
 
-	private:
-		QAction *_add_scene_act = nullptr;
-		QAction *_remove_scene_act = nullptr;
-		QAction *_toggle_toolbars_scene_act = nullptr;
+  void SelectCurrentScene();
+  void RemoveFolder(QStandardItem *folder);
 
-			QAction *_move_scene_up_act = nullptr;
-			QAction *_move_scene_down_act = nullptr;
+  // Copied from OBS, OBSBasic::CreatePerSceneTransitionMenu()
+  QMenu *CreatePerSceneTransitionMenu(QMainWindow *main_window);
 
+  inline static void obs_frontend_event_cb(enum obs_frontend_event event,
+                                           void *private_data) {
+    ((ObsSceneTreeView *)private_data)->ObsFrontendEvent(event);
+  }
 
+  inline static void obs_frontend_save_cb(obs_data_t *save_data, bool saving,
+                                          void *private_data) {
+    ((ObsSceneTreeView *)private_data)->ObsFrontendSave(save_data, saving);
+  }
 
-		std::unique_ptr<QMenu> _per_scene_transition_menu;
-
-		Ui::STVDock _stv_dock;
-
-		StvItemModel _scene_tree_items;
-		BPtr<char> _scene_collection_name = nullptr;
-
-		void SelectCurrentScene();
-		void RemoveFolder(QStandardItem *folder);
-
-		// Copied from OBS, OBSBasic::CreatePerSceneTransitionMenu()
-		QMenu *CreatePerSceneTransitionMenu(QMainWindow *main_window);
-
-		inline static void obs_frontend_event_cb(enum obs_frontend_event event, void *private_data)
-		{	((ObsSceneTreeView*)private_data)->ObsFrontendEvent(event);	}
-
-		inline static void obs_frontend_save_cb(obs_data_t *save_data, bool saving, void *private_data)
-		{	((ObsSceneTreeView*)private_data)->ObsFrontendSave(save_data, saving);	}
-
-		void ObsFrontendEvent(enum obs_frontend_event event);
-		void ObsFrontendSave(obs_data_t *save_data, bool saving);
+  void ObsFrontendEvent(enum obs_frontend_event event);
+  void ObsFrontendSave(obs_data_t *save_data, bool saving);
 };
 
-#endif //OBS_SCENE_TREE_VIEW_H
+#endif // OBS_SCENE_TREE_VIEW_H
