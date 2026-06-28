@@ -73,8 +73,11 @@ class StvItemModel : public QStandardItemModel {
   static constexpr std::string_view kSceneTreeConfigItemNameData = "name";
 
  public:
+  // Custom sort modes for folder contents.
+  enum class SortMode { kUser = 0, kAlphaAsc, kAlphaDesc };
+
   // Custom roles for standard item data lookup.
-  enum QDataRole { kObsScene = Qt::UserRole };
+  enum QDataRole { kObsScene = Qt::UserRole, kSortMode, kUserOrder };
 
   // Custom standard item type identifiers.
   enum QItemType { kFolder = QStandardItem::UserType + 1, kScene };
@@ -143,6 +146,15 @@ class StvItemModel : public QStandardItemModel {
   // Reorders items in the model by shifting the item at the index by the delta.
   bool MoveIndexByOne(const QModelIndex& index, int delta);
 
+  // Sorts the children of the given folder according to its stored SortMode.
+  void SortFolder(QStandardItem* folder);
+
+  // Recursively sorts all folders starting from the given parent.
+  void SortAllFolders(QStandardItem* parent);
+
+  // Restores the folder's children to their stored user/manual order.
+  void RestoreUserOrder(QStandardItem* folder);
+
  private:
   // Data payload representation for MIME drag-and-drop indexes.
   struct MimeItemData {
@@ -177,6 +189,9 @@ class StvItemModel : public QStandardItemModel {
 
   // Creates and populates an array with serialized folder hierarchy details.
   obs_data_array_t* CreateFolderArray(QStandardItem& folder, QTreeView* view);
+
+  // Serializes a single standard item (folder or scene) into an OBS config object.
+  OBSDataAutoRelease SerializeItem(QStandardItem& item, QTreeView* view);
 
   // Parses and recreates folders and scene nodes from a configuration array.
   void LoadFolderArray(obs_data_array_t* folder_data, QStandardItem& folder,
