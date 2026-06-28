@@ -11,8 +11,17 @@ set(LIB_EXPORT_NAME "${LIBRARY_NAME}Targets")
 set(LIB_CONFIG_NAME "${LIBRARY_NAME}Config")
 set(LIB_VERSION_NAME "${LIB_CONFIG_NAME}Version")
 
+# Read buildspec.json metadata
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/buildspec.json" BUILDSPEC_CONTENTS)
+string(JSON PROJECT_VERSION_STR GET "${BUILDSPEC_CONTENTS}" "version")
+string(JSON PROJECT_WEBSITE GET "${BUILDSPEC_CONTENTS}" "website")
+string(JSON PROJECT_EMAIL GET "${BUILDSPEC_CONTENTS}" "email")
+string(JSON PROJECT_AUTHOR GET "${BUILDSPEC_CONTENTS}" "author")
+string(JSON PROJECT_CONTRIBUTORS GET "${BUILDSPEC_CONTENTS}" "contributors")
+
 cmake_minimum_required(VERSION 3.25)
-project("${PROJECT_NAME}" VERSION 0.2.0)
+project("${PROJECT_NAME}" VERSION ${PROJECT_VERSION_STR})
+
 
 # Platform detection
 if(WIN32)

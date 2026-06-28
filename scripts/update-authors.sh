@@ -3,16 +3,16 @@
 # Exit immediately if a command exits with a non-zero status
 set -e
 
-# Run python script to parse git authors and update source code files
+# Run python script to parse git authors and update buildspec.json
 python3 - << 'EOF'
-import re
+import json
 import subprocess
 import os
 
-cpp_file = 'obs_scene_tree_view/obs_scene_tree_view.cpp'
+buildspec_file = 'buildspec.json'
 
-if not os.path.exists(cpp_file):
-    print(f"Error: {cpp_file} not found. Run this script from the project root directory.")
+if not os.path.exists(buildspec_file):
+    print(f"Error: {buildspec_file} not found. Run this script from the project root directory.")
     exit(1)
 
 # Get authors from git log ordered by latest commit timestamp
@@ -30,7 +30,6 @@ for line in output.strip().split('\n'):
     try:
         name, ts = line.rsplit('|', 1)
         ts = int(ts)
-        # Clean up name if it contains email or leading/trailing spaces
         name = name.strip()
         if name not in latest or ts > latest[name]:
             latest[name] = ts
@@ -41,30 +40,18 @@ for line in output.strip().split('\n'):
 sorted_authors = sorted(latest.keys(), key=lambda x: latest[x], reverse=True)
 authors_str = ", ".join(sorted_authors) + ", & contributors"
 
-# Update C++ file content
-with open(cpp_file, 'r', encoding='utf-8') as f:
-    content = f.read()
+# Load, update, and save buildspec.json
+with open(buildspec_file, 'r', encoding='utf-8') as f:
+    data = json.load(f)
 
-# Replace OBS_MODULE_AUTHOR(...)
-new_content, count_macro = re.subn(
-    r'OBS_MODULE_AUTHOR\("[^"]*"\);',
-    f'OBS_MODULE_AUTHOR("{authors_str}");',
-    content
-)
+data['contributors'] = authors_str
 
-# Replace <p><b>Authors:</b> ...</p>
-new_content, count_text = re.subn(
-    r'<p><b>Authors:</b> [^<]*</p>',
-    f'<p><b>Authors:</b> {authors_str}</p>',
-    new_content
-)
+with open(buildspec_file, 'w', encoding='utf-8') as f:
+    json.dump(data, f, indent=2, ensure_ascii=False)
+    # Add trailing newline for formatting consistency
+    f.write('\n')
 
-if count_macro == 0 and count_text == 0:
-    print("Warning: No author patterns found to replace. Check if they were already updated.")
-else:
-    with open(cpp_file, 'w', encoding='utf-8') as f:
-        f.write(new_content)
-    print(f"Updated {cpp_file} successfully.")
-    print(f"New Authors List: {authors_str}")
+print(f"Updated {buildspec_file} successfully.")
+print(f"New Contributors List: {authors_str}")
 
 EOF
