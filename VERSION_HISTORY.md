@@ -4,6 +4,11 @@ This document tracks the main updates, fixes, and changes made to the Scene Tree
 
 ---
 
+### v0.2.3
+* **Author**: Anthony Mendez
+- **Alphabetical Sorting**: Added folder-level alphabetical sorting support with 3 separate modes (Sort by User, Sort A-Z, and Sort Z-A) customizable via context menus.
+- **Workflow Build Fixes**: Resolved matrix value evaluation error in GitHub Actions release workflow.
+
 ### v0.2.2
 * **Author**: Anthony Mendez
 - **Google C++ Style Guide Alignment**: Refactored the entire codebase (classes, headers, pointers, namespaces, and variables) to comply with the Google C++ Style Guide.

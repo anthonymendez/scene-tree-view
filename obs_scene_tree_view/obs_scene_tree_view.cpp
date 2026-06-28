@@ -5,6 +5,7 @@
 #include "obs_scene_tree_view/obs_scene_tree_view.h"
 
 #include <QAction>
+#include <QActionGroup>
 #include <QLineEdit>
 #include <QtWidgets/QComboBox>
 #include <QtWidgets/QDialog>
@@ -164,6 +165,18 @@ ObsSceneTreeView::ObsSceneTreeView(QMainWindow* main_window)
   stv_dock_.stvTree->setDefaultDropAction(Qt::DropAction::MoveAction);
 
   stv_dock_.stvTree->setModel(&scene_tree_items_);
+  QObject::connect(&scene_tree_items_, &QStandardItemModel::rowsInserted, this,
+                   [this](const QModelIndex&, int, int) {
+                     if (scene_collection_name_) {
+                       SaveSceneTree(scene_collection_name_);
+                     }
+                   });
+  QObject::connect(&scene_tree_items_, &QStandardItemModel::rowsRemoved, this,
+                   [this](const QModelIndex&, int, int) {
+                     if (scene_collection_name_) {
+                       SaveSceneTree(scene_collection_name_);
+                     }
+                   });
   if (auto sm = stv_dock_.stvTree->selectionModel()) {
     QObject::connect(sm, &QItemSelectionModel::currentChanged, this,
                      [this](const QModelIndex&, const QModelIndex&) {
@@ -240,15 +253,19 @@ void ObsSceneTreeView::LoadSceneTree(const char* scene_collection) {
 
   OBSDataAutoRelease stv_data =
       obs_data_create_from_json_file(stv_config_file_path);
+  scene_tree_items_.blockSignals(true);
   scene_tree_items_.LoadSceneTree(stv_data, scene_collection,
                                   stv_dock_.stvTree);
+  scene_tree_items_.blockSignals(false);
 }
 
 void ObsSceneTreeView::UpdateTreeView() {
   obs_frontend_source_list scene_list = {};
   obs_frontend_get_scenes(&scene_list);
 
+  scene_tree_items_.blockSignals(true);
   scene_tree_items_.UpdateTree(scene_list, stv_dock_.stvTree->currentIndex());
+  scene_tree_items_.blockSignals(false);
 
   obs_frontend_source_list_free(&scene_list);
 
@@ -321,6 +338,77 @@ void ObsSceneTreeView::on_stvTree_customContextMenuRequested(const QPoint& pos) 
 
   popup.addAction(obs_module_text("SceneTreeView.AddFolder"), this,
                   SLOT(on_stvAddFolder_clicked()));
+
+  popup.addSeparator();
+
+  QStandardItem* folder_item = nullptr;
+  if (!item) {
+    folder_item = scene_tree_items_.invisibleRootItem();
+  } else if (item->type() == StvItemModel::kFolder) {
+    folder_item = item;
+  } else {
+    folder_item = scene_tree_items_.GetParentOrRoot(item->index());
+  }
+
+  QActionGroup* sortGroup = new QActionGroup(&popup);
+
+  QAction* sortUser = popup.addAction(obs_module_text("SceneTreeView.SortByUser"));
+  sortUser->setCheckable(true);
+  sortGroup->addAction(sortUser);
+
+  QAction* sortAsc = popup.addAction(obs_module_text("SceneTreeView.SortAsc"));
+  sortAsc->setCheckable(true);
+  sortGroup->addAction(sortAsc);
+
+  QAction* sortDesc = popup.addAction(obs_module_text("SceneTreeView.SortDesc"));
+  sortDesc->setCheckable(true);
+  sortGroup->addAction(sortDesc);
+
+  int current_mode = folder_item->data(StvItemModel::kSortMode).toInt();
+  if (current_mode == static_cast<int>(StvItemModel::SortMode::kAlphaAsc)) {
+    sortAsc->setChecked(true);
+  } else if (current_mode == static_cast<int>(StvItemModel::SortMode::kAlphaDesc)) {
+    sortDesc->setChecked(true);
+  } else {
+    sortUser->setChecked(true);
+  }
+
+  auto setSortMode = [this, folder_item](StvItemModel::SortMode mode) {
+    int current_mode = folder_item->data(StvItemModel::kSortMode).toInt();
+    if (current_mode == static_cast<int>(StvItemModel::SortMode::kUser) &&
+        mode != StvItemModel::SortMode::kUser) {
+      QVariantList user_list;
+      for (int j = 0; j < folder_item->rowCount(); ++j) {
+        QStandardItem* child = folder_item->child(j);
+        QVariantMap map;
+        map["name"] = child->text();
+        map["type"] = child->type();
+        user_list.append(map);
+      }
+      folder_item->setData(user_list, StvItemModel::kUserOrder);
+    }
+
+    folder_item->setData(static_cast<int>(mode), StvItemModel::kSortMode);
+
+    if (mode == StvItemModel::SortMode::kUser) {
+      scene_tree_items_.RestoreUserOrder(folder_item);
+      folder_item->setData(QVariant(), StvItemModel::kUserOrder);
+    } else {
+      scene_tree_items_.SortFolder(folder_item);
+    }
+
+    SaveSceneTree(scene_collection_name_);
+  };
+
+  connect(sortUser, &QAction::triggered, [setSortMode]() {
+    setSortMode(StvItemModel::SortMode::kUser);
+  });
+  connect(sortAsc, &QAction::triggered, [setSortMode]() {
+    setSortMode(StvItemModel::SortMode::kAlphaAsc);
+  });
+  connect(sortDesc, &QAction::triggered, [setSortMode]() {
+    setSortMode(StvItemModel::SortMode::kAlphaDesc);
+  });
 
   if (item) {
     if (item->type() == StvItemModel::kScene) {
@@ -408,6 +496,7 @@ void ObsSceneTreeView::on_stvTree_customContextMenuRequested(const QPoint& pos) 
     auto toggleIcon = [this, showIcon, configName, item]() {
       config_set_bool(obs_frontend_get_user_config(), "SceneTreeView",
                       configName, !showIcon);
+      config_save(obs_frontend_get_user_config());
       scene_tree_items_.SetIconVisibility(
           !showIcon, (StvItemModel::QItemType)item->type());
     };
@@ -432,6 +521,10 @@ void ObsSceneTreeView::on_SceneNameEdited(QWidget* editor) {
 
     selected->setText(scene_tree_items_.CreateUniqueFolderName(
         selected, scene_tree_items_.GetParentOrRoot(selected->index())));
+
+    QStandardItem* parent = scene_tree_items_.GetParentOrRoot(selected->index());
+    scene_tree_items_.SortFolder(parent);
+    SaveSceneTree(scene_collection_name_);
   }
 }
 
@@ -736,6 +829,11 @@ void ObsSceneTreeView::ObsFrontendEvent(enum obs_frontend_event event) {
             browser->setHtml(QStringLiteral(
                 "<h3>Version History</h3>"
                 "<hr/>"
+                "<b>v0.2.3</b> (Anthony Mendez)"
+                "<ul>"
+                "<li><b>Alphabetical Sorting:</b> Added folder-level alphabetical sorting support with 3 separate modes (Sort by User, Sort A-Z, and Sort Z-A) customizable via context menus.</li>"
+                "<li><b>Workflow Build Fixes:</b> Resolved matrix value evaluation error in GitHub Actions release workflow.</li>"
+                "</ul>"
                 "<b>v0.2.2</b> (Anthony Mendez)"
                 "<ul>"
                 "<li><b>Google C++ Style Guide Alignment:</b> Refactored classes, headers, namespaces, and variables to conform to Google C++ Style guidelines.</li>"

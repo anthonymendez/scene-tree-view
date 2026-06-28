@@ -100,6 +100,10 @@ bool StvItemModel::dropMimeData(const QMimeData* data, Qt::DropAction action,
     return false;
   }
 
+  if (parent_item->data(kSortMode).toInt() != static_cast<int>(SortMode::kUser)) {
+    parent_item->setData(static_cast<int>(SortMode::kUser), kSortMode);
+  }
+
   if (row < 0) {
     row = 0;
   }
@@ -214,6 +218,7 @@ void StvItemModel::UpdateTree(obs_frontend_source_list& scene_list,
   }
 
   scenes_in_tree_ = std::move(new_scene_tree);
+  SortAllFolders(invisibleRootItem());
 }
 
 bool StvItemModel::CheckFolderNameUniqueness(const QString& name,
@@ -281,6 +286,10 @@ void StvItemModel::SaveSceneTree(obs_data_t* root_folder_data,
   OBSDataArrayAutoRelease folder_data =
       CreateFolderArray(*invisibleRootItem(), view);
   obs_data_set_array(root_folder_data, scene_collection, folder_data);
+
+  int root_sort_mode = invisibleRootItem()->data(kSortMode).toInt();
+  std::string root_sort_key = std::string(scene_collection) + "_sort_mode";
+  obs_data_set_int(root_folder_data, root_sort_key.c_str(), root_sort_mode);
 }
 
 void StvItemModel::LoadSceneTree(obs_data_t* root_folder_data,
@@ -293,6 +302,10 @@ void StvItemModel::LoadSceneTree(obs_data_t* root_folder_data,
   // Erase previous data.
   CleanupSceneTree();
 
+  std::string root_sort_key = std::string(scene_collection) + "_sort_mode";
+  int root_sort_mode = obs_data_get_int(root_folder_data, root_sort_key.c_str());
+  root_item->setData(root_sort_mode, kSortMode);
+
   // Add loaded data.
   OBSDataArrayAutoRelease folder_array =
       obs_data_get_array(root_folder_data, scene_collection);
@@ -304,6 +317,21 @@ void StvItemModel::LoadSceneTree(obs_data_t* root_folder_data,
       view->setExpanded(item->index(), true);
     }
   }
+
+  if (root_sort_mode == static_cast<int>(SortMode::kAlphaAsc) ||
+      root_sort_mode == static_cast<int>(SortMode::kAlphaDesc)) {
+    QVariantList user_list;
+    for (int j = 0; j < root_item->rowCount(); ++j) {
+      QStandardItem* child = root_item->child(j);
+      QVariantMap map;
+      map["name"] = child->text();
+      map["type"] = child->type();
+      user_list.append(map);
+    }
+    root_item->setData(user_list, kUserOrder);
+  }
+
+  SortAllFolders(root_item);
 }
 
 void StvItemModel::CleanupSceneTree() {
@@ -410,6 +438,10 @@ bool StvItemModel::MoveIndexByOne(const QModelIndex& index, int delta) {
     parent_item = invisibleRootItem();
   }
 
+  if (parent_item->data(kSortMode).toInt() != static_cast<int>(SortMode::kUser)) {
+    parent_item->setData(static_cast<int>(SortMode::kUser), kSortMode);
+  }
+
   const int row = index.row();
   const int rowCount = parent_item->rowCount();
   int insertPos = row + delta;
@@ -493,32 +525,72 @@ void StvItemModel::MoveSceneFolder(QStandardItem* item, int row,
   }
 }
 
+OBSDataAutoRelease StvItemModel::SerializeItem(QStandardItem& item,
+                                               QTreeView* view) {
+  OBSDataAutoRelease item_data = obs_data_create();
+  if (item.type() == kFolder) {
+    OBSDataArrayAutoRelease sub_folder_data = CreateFolderArray(item, view);
+    obs_data_set_array(item_data, kSceneTreeConfigFolderData.data(),
+                       sub_folder_data);
+    obs_data_set_bool(item_data, kSceneTreeConfigFolderExpanded.data(),
+                      view->isExpanded(item.index()));
+    obs_data_set_string(item_data, kSceneTreeConfigItemNameData.data(),
+                        item.text().toStdString().c_str());
+
+    int sort_mode = item.data(kSortMode).toInt();
+    obs_data_set_int(item_data, "sort_mode", sort_mode);
+  } else {
+    obs_weak_source_t* weak =
+        item.data(QDataRole::kObsScene).value<ObsWeakSourcePtr>().ptr;
+    OBSSourceAutoRelease source = OBSGetStrongRef(weak);
+    obs_data_set_string(item_data, kSceneTreeConfigItemNameData.data(),
+                        obs_source_get_name(source));
+  }
+  return item_data;
+}
+
 obs_data_array_t* StvItemModel::CreateFolderArray(QStandardItem& folder,
                                                   QTreeView* view) {
   obs_data_array_t* folder_data = obs_data_array_create();
 
-  for (int i = 0; i < folder.rowCount(); ++i) {
-    QStandardItem* item = folder.child(i);
-    assert(item->type() == kFolder || item->type() == kScene);
+  int sort_mode = folder.data(kSortMode).toInt();
+  QVariant var_user_order = folder.data(kUserOrder);
 
-    OBSDataAutoRelease item_data = obs_data_create();
-    if (item->type() == kFolder) {
-      OBSDataArrayAutoRelease sub_folder_data = CreateFolderArray(*item, view);
-      obs_data_set_array(item_data, kSceneTreeConfigFolderData.data(),
-                         sub_folder_data);
-      obs_data_set_bool(item_data, kSceneTreeConfigFolderExpanded.data(),
-                        view->isExpanded(item->index()));
-      obs_data_set_string(item_data, kSceneTreeConfigItemNameData.data(),
-                          item->text().toStdString().c_str());
-    } else {
-      obs_weak_source_t* weak =
-          item->data(QDataRole::kObsScene).value<ObsWeakSourcePtr>().ptr;
-      OBSSourceAutoRelease source = OBSGetStrongRef(weak);
-      obs_data_set_string(item_data, kSceneTreeConfigItemNameData.data(),
-                          obs_source_get_name(source));
+  if ((sort_mode == static_cast<int>(SortMode::kAlphaAsc) ||
+       sort_mode == static_cast<int>(SortMode::kAlphaDesc)) &&
+      var_user_order.isValid() && !var_user_order.isNull()) {
+    QVariantList user_list = var_user_order.toList();
+    QList<QStandardItem*> children;
+    for (int i = 0; i < folder.rowCount(); ++i) {
+      children.append(folder.child(i));
     }
 
-    obs_data_array_push_back(folder_data, item_data);
+    for (const QVariant& v : user_list) {
+      QVariantMap map = v.toMap();
+      QString name = map.value("name").toString();
+      int type = map.value("type").toInt();
+
+      for (int i = 0; i < children.size(); ++i) {
+        QStandardItem* item = children.at(i);
+        if (item && item->text() == name && item->type() == type) {
+          OBSDataAutoRelease item_data = SerializeItem(*item, view);
+          obs_data_array_push_back(folder_data, item_data);
+          children.removeAt(i);
+          break;
+        }
+      }
+    }
+
+    for (QStandardItem* item : children) {
+      OBSDataAutoRelease item_data = SerializeItem(*item, view);
+      obs_data_array_push_back(folder_data, item_data);
+    }
+  } else {
+    for (int i = 0; i < folder.rowCount(); ++i) {
+      QStandardItem* item = folder.child(i);
+      OBSDataAutoRelease item_data = SerializeItem(*item, view);
+      obs_data_array_push_back(folder_data, item_data);
+    }
   }
 
   return folder_data;
@@ -562,7 +634,23 @@ void StvItemModel::LoadFolderArray(
       }
     } else {
       StvFolderItem* new_folder_item = new StvFolderItem(item_name);
+      int sort_mode = obs_data_get_int(item_data, "sort_mode");
+      new_folder_item->setData(sort_mode, kSortMode);
+
       LoadFolderArray(sub_folder_data, *new_folder_item, expandable_folders);
+
+      if (sort_mode == static_cast<int>(SortMode::kAlphaAsc) ||
+          sort_mode == static_cast<int>(SortMode::kAlphaDesc)) {
+        QVariantList user_list;
+        for (int j = 0; j < new_folder_item->rowCount(); ++j) {
+          QStandardItem* child = new_folder_item->child(j);
+          QVariantMap map;
+          map["name"] = child->text();
+          map["type"] = child->type();
+          user_list.append(map);
+        }
+        new_folder_item->setData(user_list, kUserOrder);
+      }
 
       folder.appendRow(new_folder_item);
 
@@ -592,6 +680,76 @@ void StvItemModel::SetIcon(const QIcon& icon, QItemType item_type,
     if (child->type() == kFolder) {
       SetIcon(icon, item_type, child);
     }
+  }
+}
+
+void StvItemModel::SortFolder(QStandardItem* folder) {
+  if (!folder) {
+    return;
+  }
+
+  int mode_val = folder->data(kSortMode).toInt();
+  SortMode mode = static_cast<SortMode>(mode_val);
+
+  if (mode == SortMode::kAlphaAsc) {
+    folder->sortChildren(0, Qt::AscendingOrder);
+  } else if (mode == SortMode::kAlphaDesc) {
+    folder->sortChildren(0, Qt::DescendingOrder);
+  }
+}
+
+void StvItemModel::SortAllFolders(QStandardItem* parent) {
+  if (!parent) {
+    return;
+  }
+
+  SortFolder(parent);
+
+  for (int i = 0; i < parent->rowCount(); ++i) {
+    QStandardItem* child = parent->child(i);
+    if (child && child->type() == kFolder) {
+      SortAllFolders(child);
+    }
+  }
+}
+
+void StvItemModel::RestoreUserOrder(QStandardItem* folder) {
+  if (!folder) {
+    return;
+  }
+
+  QVariant var = folder->data(kUserOrder);
+  if (!var.isValid() || var.isNull()) {
+    return;
+  }
+
+  QVariantList list = var.toList();
+  if (list.isEmpty()) {
+    return;
+  }
+
+  QList<QStandardItem*> taken;
+  while (folder->rowCount() > 0) {
+    taken.append(folder->takeRow(0).at(0));
+  }
+
+  for (const QVariant& v : list) {
+    QVariantMap map = v.toMap();
+    QString name = map.value("name").toString();
+    int type = map.value("type").toInt();
+
+    for (int i = 0; i < taken.size(); ++i) {
+      QStandardItem* item = taken.at(i);
+      if (item && item->text() == name && item->type() == type) {
+        folder->appendRow(item);
+        taken.removeAt(i);
+        break;
+      }
+    }
+  }
+
+  for (QStandardItem* item : taken) {
+    folder->appendRow(item);
   }
 }
 
