@@ -155,6 +155,9 @@ class StvItemModel : public QStandardItemModel {
   // Restores the folder's children to their stored user/manual order.
   void RestoreUserOrder(QStandardItem* folder);
 
+  // Appends a child item details to its parent's kUserOrder metadata if sorted.
+  void AddChildToUserOrder(QStandardItem* parent, QStandardItem* child);
+
  private:
   // Data payload representation for MIME drag-and-drop indexes.
   struct MimeItemData {

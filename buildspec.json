@@ -1,7 +1,7 @@
 {
   "name": "obs_scene_tree_view",
   "displayName": "Scene Tree View",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "author": "Anthony Mendez",
   "website": "https://github.com/anthonymendez/scene-tree-view",
   "email": "anthonymendez9@gmail.com",
