@@ -121,12 +121,12 @@ bool StvItemModel::dropMimeData(const QMimeData* data, Qt::DropAction action,
     const MimeItemData* item_data = (const MimeItemData*)dat;
     assert(item_data->type == kFolder || item_data->type == kScene);
     if (item_data->type == kScene) {
-      MoveSceneItem((obs_weak_source_t*)item_data->data, row, parent_item);
+      MoveSceneItem((obs_weak_source_t*)item_data->data, row + i, parent_item);
     } else {
-      MoveSceneFolder((QStandardItem*)item_data->data, row, parent_item);
+      MoveSceneFolder((QStandardItem*)item_data->data, row + i, parent_item);
     }
 
-    dat += sizeof(ObsWeakSourcePtr);
+    dat += sizeof(MimeItemData);
   }
 
   return true;
@@ -195,6 +195,7 @@ void StvItemModel::UpdateTree(obs_frontend_source_list& scene_list,
 
       const auto row = parent == selected ? 0 : selected->row();
       parent->insertRow(row, pItem);
+      AddChildToUserOrder(parent, pItem);
 
       scene_it->second = pItem;
     } else {
@@ -488,6 +489,7 @@ void StvItemModel::MoveSceneItem(obs_weak_source_t* source, int row,
     StvSceneItem* pItem =
         new StvSceneItem(scene_it->second->text(), scene_it->first);
     parent_item->insertRow(row, pItem);
+    AddChildToUserOrder(parent_item, pItem);
 
     // Old item removed when returning true.
 
@@ -508,7 +510,11 @@ void StvItemModel::MoveSceneFolder(QStandardItem* item, int row,
   QString new_name = CreateUniqueFolderName(item, parent_item);
 
   StvFolderItem* new_item = new StvFolderItem(new_name);
+  new_item->setData(item->data(kSortMode), kSortMode);
+  new_item->setData(item->data(kUserOrder), kUserOrder);
+
   parent_item->insertRow(row, new_item);
+  AddChildToUserOrder(parent_item, new_item);
 
   for (int sub_row = 0; sub_row < item->rowCount(); ++sub_row) {
     QStandardItem* sub_item = item->child(sub_row);
@@ -750,6 +756,27 @@ void StvItemModel::RestoreUserOrder(QStandardItem* folder) {
 
   for (QStandardItem* item : taken) {
     folder->appendRow(item);
+  }
+}
+
+void StvItemModel::AddChildToUserOrder(QStandardItem* parent,
+                                      QStandardItem* child) {
+  if (!parent || !child) {
+    return;
+  }
+
+  int sort_mode = parent->data(kSortMode).toInt();
+  if (sort_mode == static_cast<int>(SortMode::kAlphaAsc) ||
+      sort_mode == static_cast<int>(SortMode::kAlphaDesc)) {
+    QVariant var = parent->data(kUserOrder);
+    if (var.isValid() && !var.isNull()) {
+      QVariantList user_list = var.toList();
+      QVariantMap map;
+      map["name"] = child->text();
+      map["type"] = child->type();
+      user_list.append(map);
+      parent->setData(user_list, kUserOrder);
+    }
   }
 }
 

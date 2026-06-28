@@ -9,7 +9,9 @@
 
 namespace scene_tree_view {
 
-StvItemView::StvItemView(QWidget* parent) : QTreeView(parent) {}
+StvItemView::StvItemView(QWidget* parent) : QTreeView(parent) {
+  setSelectionMode(QAbstractItemView::ExtendedSelection);
+}
 
 void StvItemView::SetItemModel(StvItemModel* model) { model_ = model; }
 
@@ -17,13 +19,13 @@ void StvItemView::selectionChanged(const QItemSelection& selected,
                                    const QItemSelection& deselected) {
   QTreeView::selectionChanged(selected, deselected);
 
-  if (selected.indexes().empty()) {
+  QModelIndex curr = currentIndex();
+  if (!curr.isValid()) {
     return;
   }
 
-  assert(selected.indexes().size() == 1);
-  QStandardItem* item = model_->itemFromIndex(selected.indexes().front());
-  if (item->type() == StvItemModel::kScene) {
+  QStandardItem* item = model_->itemFromIndex(curr);
+  if (item && item->type() == StvItemModel::kScene) {
     model_->SetSelectedScene(item, obs_frontend_preview_program_mode_active());
   }
 }

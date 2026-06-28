@@ -4,6 +4,12 @@ This document tracks the main updates, fixes, and changes made to the Scene Tree
 
 ---
 
+### v0.2.4
+* **Author**: Anthony Mendez
+- **Multi-Selection & Group Move**: Added support for selecting multiple scenes/folders (`Ctrl`/`Shift` multi-selection) to drag-and-drop or move them as a group.
+- **MIME Serialization Fix**: Fixed memory offset reading bug when processing multiple items in `dropMimeData`.
+- **Folder Sorting Fix**: Ensured newly created and moved folders preserve the sorting state of their parent/original container.
+
 ### v0.2.3
 * **Author**: Anthony Mendez
 - **Alphabetical Sorting**: Added folder-level alphabetical sorting support with 3 separate modes (Sort by User, Sort A-Z, and Sort Z-A) customizable via context menus.

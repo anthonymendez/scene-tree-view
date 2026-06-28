@@ -306,6 +306,8 @@ void ObsSceneTreeView::on_stvAddFolder_clicked() {
 
   StvFolderItem* pItem = new StvFolderItem(new_folder_name);
   selected->insertRow(row, pItem);
+  scene_tree_items_.AddChildToUserOrder(selected, pItem);
+  scene_tree_items_.SortFolder(selected);
 
   SaveSceneTree(scene_collection_name_);
 }
@@ -990,68 +992,7 @@ void ObsSceneTreeView::ObsFrontendEvent(enum obs_frontend_event event) {
             QVBoxLayout* layout = new QVBoxLayout(&history_dialog);
             QTextBrowser* browser = new QTextBrowser(&history_dialog);
             browser->setOpenExternalLinks(true);
-            browser->setHtml(QStringLiteral(
-                "<h3>Version History</h3>"
-                "<hr/>"
-                "<b>v0.2.3</b> (Anthony Mendez)"
-                "<ul>"
-                "<li><b>Alphabetical Sorting:</b> Added folder-level alphabetical sorting support with 3 separate modes (Sort by User, Sort A-Z, and Sort Z-A) customizable via context menus.</li>"
-                "<li><b>Workflow Build Fixes:</b> Resolved matrix value evaluation error in GitHub Actions release workflow.</li>"
-                "</ul>"
-                "<b>v0.2.2</b> (Anthony Mendez)"
-                "<ul>"
-                "<li><b>Google C++ Style Guide Alignment:</b> Refactored classes, headers, namespaces, and variables to conform to Google C++ Style guidelines.</li>"
-                "<li><b>Improved About Dialog:</b> Integrated a dedicated, scrollable version history window.</li>"
-                "<li><b>Author Identity Alignment:</b> Standardized local repository commits and contributors.</li>"
-                "</ul>"
-                "<b>v0.2.1</b> (Anthony Mendez)"
-                "<ul>"
-                "<li><b>Automated Linux Scripting:</b> Introduced automated build and install script for Arch/CachyOS.</li>"
-                "<li><b>NTFS Compilation Fix:</b> Fixed GNU BFD linker crashes on NTFS partitions via ld.lld fallback.</li>"
-                "<li><b>Tools Menu Integration:</b> Added a Tools menu action to display QMessageBox.</li>"
-                "<li><b>Metadata Centralization:</b> Centralized project metadata in buildspec.json.</li>"
-                "</ul>"
-                "<b>v0.2.0</b> (Anthony Mendez, TheThirdRail, John Titor, DigitOtter, Marcelo dos Santos Mafra)"
-                "<ul>"
-                "<li><b>Cross-Platform Support:</b> Enabled Linux and macOS compilation using CMake.</li>"
-                "<li><b>macOS Universal Binaries:</b> Added multi-architecture support and Qt 6 framework packaging.</li>"
-                "<li><b>CI Workflows:</b> Configured GitHub Actions release workflows.</li>"
-                "</ul>"
-                "<b>v0.1.9 / v0.1.12</b> (DigitOtter)"
-                "<ul>"
-                "<li><b>macOS Qt 6.8:</b> Added compatibility fixes for dependencies.</li>"
-                "</ul>"
-                "<b>v0.1.8</b> (DigitOtter)"
-                "<ul>"
-                "<li><b>Button-driven Reordering:</b> Added Move Up/Down buttons to the dock toolbar.</li>"
-                "<li><b>Theme-aware Icons:</b> Wired dynamic icon styles for toolbar buttons.</li>"
-                "<li><b>Folder Creation Heuristics:</b> Added duplicate folder check to generate unique names.</li>"
-                "</ul>"
-                "<b>v0.1.7</b> (DigitOtter, Marcelo dos Santos Mafra, Borlader)"
-                "<ul>"
-                "<li><b>OBS Studio 32+ Support:</b> Fixed scene renaming hooks for OBS 28/29.</li>"
-                "<li><b>Russian Localization:</b> Added translation files.</li>"
-                "<li><b>Global Duplicate Check:</b> Enhanced uniqueness scan across the entire tree.</li>"
-                "<li><b>Initial Dock Behavior:</b> Set dock to start hidden on first load.</li>"
-                "<li><b>Author Identity Alignment:</b> Standardized local repository commits and contributors.</li>"
-                "</ul>"
-                "<b>v0.1.6</b> (DigitOtter)"
-                "<ul>"
-                "<li><b>Content Sizing:</b> Fixed tree view layout resizing bugs.</li>"
-                "<li><b>Checksum Utility:</b> Automated zip verification.</li>"
-                "</ul>"
-                "<b>v0.1.5</b> (DigitOtter)"
-                "<ul>"
-                "<li><b>Windows Build Guide:</b> Documented build guidelines for Windows.</li>"
-                "<li><b>Button Class Sync:</b> Matched dynamic properties to OBS styles.</li>"
-                "</ul>"
-                "<b>v0.1.0 (Initial Release)</b> (DigitOtter, Marcelo dos Santos Mafra)"
-                "<ul>"
-                "<li><b>Hierarchical Dock:</b> Created custom tree structure layout in OBS Studio.</li>"
-                "<li><b>Nesting & Drag-and-Drop:</b> Supported folders and direct index sorting.</li>"
-                "<li><b>Locale Framework:</b> Added pt-BR and en-US locales.</li>"
-                "</ul>"
-            ));
+            browser->setMarkdown(QString::fromUtf8(PROJECT_VERSION_HISTORY));
             layout->addWidget(browser);
             history_dialog.resize(550, 450);
             history_dialog.exec();
