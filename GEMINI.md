@@ -51,7 +51,8 @@ To keep the credits inside the plugin's metadata and the About dialog synchroniz
 ### How the Author Script Works:
 - Runs a Python parsing script that extracts all unique commit authors from `git log`.
 - Orders the authors based on the timestamp of their **latest commit** (most recently active author listed first).
-- Automates editing of the source code file [obs_scene_tree_view.cpp](file:///run/media/anthony/Roommate/Projects/scene-tree-view/obs_scene_tree_view/obs_scene_tree_view.cpp), replacing the metadata `OBS_MODULE_AUTHOR("...")` macro and the Qt About text with the updated sorted list of authors.
+- Automates editing of **`buildspec.json`** instead of editing source code directly, updating the `"contributors"` field.
+- **Single Source of Truth**: CMake reads and parses `buildspec.json` during the build configuration, generating preprocessor definitions in `version.h` (`PROJECT_AUTHOR`, `PROJECT_CONTRIBUTORS`, `PROJECT_WEBSITE`, etc.). This keeps the C++ source files completely static and decoupled from metadata changes.
 
 ---
 
@@ -66,3 +67,4 @@ When you make changes to the C++ code or when new authors submit commits to the 
    ./scripts/build-linux.sh
    ```
    *(Select `1` to install locally to OBS config folder)*
+
