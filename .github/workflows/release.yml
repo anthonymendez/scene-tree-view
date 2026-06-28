@@ -214,8 +214,14 @@ jobs:
           echo "Building plugin..."
           cmake --build build --config Release
 
-      - name: Package Plugin
-        shell: ${{ matrix.shell }}
+      - name: Package Plugin (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: ${{ matrix.script }}
+
+      - name: Package Plugin (Linux/macOS)
+        if: matrix.os != 'windows-latest'
+        shell: bash
         run: ${{ matrix.script }}
 
       - name: Upload Artifacts
