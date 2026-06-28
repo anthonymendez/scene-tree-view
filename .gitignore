@@ -39,3 +39,5 @@ nul
 
 # OBS Forum announcements (drafts, not for version control)
 /OBS-Forum/
+/dist/
+
