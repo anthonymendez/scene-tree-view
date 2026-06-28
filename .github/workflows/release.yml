@@ -3,8 +3,8 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
-      - '[0-9]+.*'
+      - "v*"
+      - "[0-9]+.*"
 
 permissions:
   contents: write
@@ -217,7 +217,14 @@ jobs:
           echo "Building plugin..."
           cmake --build build --config Release
 
-      - name: Package Plugin
+      - name: Package Plugin (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: ${{ matrix.script }}
+
+      - name: Package Plugin (Linux/macOS)
+        if: matrix.os != 'windows-latest'
+        shell: bash
         run: ${{ matrix.script }}
 
       - name: Upload Artifacts
@@ -277,22 +284,22 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e  # Exit on error
-          
+
           # Delete existing release if it exists (draft releases from failed attempts)
           # Use subshell to prevent set -e from triggering on expected failure
           (gh release delete "${{ github.ref_name }}" --yes 2>/dev/null) || echo "No existing release to delete"
-          
+
           # Get all files to upload
           FILES=$(find artifacts -type f \( -name "*.zip" -o -name "*.sha256" -o -name "*.flatpak" \))
-          
+
           echo "Files to upload:"
           echo "$FILES"
-          
+
           if [ -z "$FILES" ]; then
             echo "ERROR: No files found to upload!"
             exit 1
           fi
-          
+
           # Create the release with all files
           # shellcheck disable=SC2086
           gh release create "${{ github.ref_name }}" \
@@ -300,6 +307,5 @@ jobs:
             --generate-notes \
             --title "Release ${{ github.ref_name }}" \
             $FILES
-          
-          echo "Release created successfully!"
 
+          echo "Release created successfully!"
