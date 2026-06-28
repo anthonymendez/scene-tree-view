@@ -63,7 +63,7 @@
         <number>0</number>
        </property>
        <item>
-        <widget class="StvItemView" name="stvTree">
+        <widget class="scene_tree_view::StvItemView" name="stvTree">
          <property name="contextMenuPolicy">
           <enum>Qt::CustomContextMenu</enum>
          </property>
@@ -193,7 +193,7 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>StvItemView</class>
+   <class>scene_tree_view::StvItemView</class>
    <extends>QTreeView</extends>
    <header>obs_scene_tree_view/stv_item_view.h</header>
   </customwidget>

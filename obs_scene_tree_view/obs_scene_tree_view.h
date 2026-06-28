@@ -1,79 +1,122 @@
-#ifndef OBS_SCENE_TREE_VIEW_H
-#define OBS_SCENE_TREE_VIEW_H
+// Copyright (c) 2026 Anthony Mendez. All rights reserved.
+// Use of this source code is governed by the GPL-2.0 license that can be
+// found in the LICENSE file.
+
+#ifndef OBS_SCENE_TREE_VIEW_OBS_SCENE_TREE_VIEW_H_
+#define OBS_SCENE_TREE_VIEW_OBS_SCENE_TREE_VIEW_H_
 
 #include <map>
+#include <memory>
+#include <string_view>
 
 #include <QAbstractItemDelegate>
 #include <QtWidgets/QWidget>
 
+#include <obs-data.h>
 #include <util/util.hpp>
 
-#include "obs-data.h"
 #include "obs_scene_tree_view/stv_item_model.h"
 #include "ui_scene_tree_view.h"
 
+namespace scene_tree_view {
+
+// Custom dock widget providing a tree-structured scene collection for OBS.
+// Displays scenes, custom folders, allows reordering/nesting, and maps selection
+// and context menu actions directly into active OBS frontend contexts.
 class ObsSceneTreeView : public QWidget {
   Q_OBJECT
 
-public:
-  static constexpr std::string_view SCENE_TREE_CONFIG_FILE = "scene_tree.json";
+ public:
+  // Default configuration filename for storing scene tree state.
+  static constexpr std::string_view kSceneTreeConfigFile = "scene_tree.json";
 
-  ObsSceneTreeView(QMainWindow *main_window);
-  virtual ~ObsSceneTreeView() override;
+  // Creates the scene tree dock widget and initializes its child UI layouts.
+  explicit ObsSceneTreeView(QMainWindow* main_window);
+  ~ObsSceneTreeView() override;
 
-  void SaveSceneTree(const char *scene_collection);
-  void LoadSceneTree(const char *scene_collection);
+  // Saves the scene tree layout for the specified scene collection.
+  void SaveSceneTree(const char* scene_collection);
 
-protected slots:
+  // Loads the scene tree layout for the specified scene collection.
+  void LoadSceneTree(const char* scene_collection);
+
+ protected slots:
+  // Re-synchronizes the scene tree item model with the active OBS scene list.
   void UpdateTreeView();
 
+  // Toggles the visibility of toolbar items in the dock window.
   void on_toggleListboxToolbars(bool visible);
 
+  // Creates and adds a new folder item at the current selection level.
   void on_stvAddFolder_clicked();
+
+  // Initiates deletion logic for the currently selected folder or scene.
   void on_stvRemove_released();
 
+  // Shifts the selected item up by one index within its current parent level.
   void on_stvMoveUp_released();
+
+  // Shifts the selected item down by one index within its current parent level.
   void on_stvMoveDown_released();
+
+  // Updates the enablement status of the move up/down tool buttons.
   void UpdateMoveButtonsEnabled();
 
-  // Copied from OBS, OBSBasic::on_scenes_customContextMenuRequested()
-  void on_stvTree_customContextMenuRequested(const QPoint &pos);
+  // Spawns a custom context menu for the scene tree item at the specified position.
+  void on_stvTree_customContextMenuRequested(const QPoint& pos);
 
-  void on_SceneNameEdited(QWidget *editor);
+  // Finalizes renaming operations on folder items.
+  void on_SceneNameEdited(QWidget* editor);
 
-private:
-  QAction *_add_scene_act = nullptr;
-  QAction *_remove_scene_act = nullptr;
-  QAction *_toggle_toolbars_scene_act = nullptr;
+ private:
+  // Actions linked from the main OBS window context.
+  QAction* add_scene_act_ = nullptr;
+  QAction* remove_scene_act_ = nullptr;
+  QAction* toggle_toolbars_scene_act_ = nullptr;
+  QAction* move_scene_up_act_ = nullptr;
+  QAction* move_scene_down_act_ = nullptr;
 
-  QAction *_move_scene_up_act = nullptr;
-  QAction *_move_scene_down_act = nullptr;
+  // Custom submenu override to handle per-scene transition mappings.
+  std::unique_ptr<QMenu> per_scene_transition_menu_;
 
-  std::unique_ptr<QMenu> _per_scene_transition_menu;
+  // Auto-generated UI form class mapping layout components.
+  Ui::STVDock stv_dock_;
 
-  Ui::STVDock _stv_dock;
+  // Underlying data model representing current folder/scene hierarchy.
+  StvItemModel scene_tree_items_;
 
-  StvItemModel _scene_tree_items;
-  BPtr<char> _scene_collection_name = nullptr;
+  // Cached name of the active OBS scene collection.
+  BPtr<char> scene_collection_name_ = nullptr;
 
+  // Selects and focuses the active OBS scene in the tree widget.
   void SelectCurrentScene();
-  void RemoveFolder(QStandardItem *folder);
 
-  // Copied from OBS, OBSBasic::CreatePerSceneTransitionMenu()
-  QMenu *CreatePerSceneTransitionMenu(QMainWindow *main_window);
+  // Recursively removes folder items and deletes any nested OBS scenes.
+  void RemoveFolder(QStandardItem* folder);
 
+  // Generates transition override context menus for individual scenes.
+  QMenu* CreatePerSceneTransitionMenu(QMainWindow* main_window);
+
+  // Static event callback forwarder registered into the OBS frontend system.
   inline static void obs_frontend_event_cb(enum obs_frontend_event event,
-                                           void *private_data) {
-    ((ObsSceneTreeView *)private_data)->ObsFrontendEvent(event);
+                                           void* private_data) {
+    reinterpret_cast<ObsSceneTreeView*>(private_data)->ObsFrontendEvent(event);
   }
 
-  inline static void obs_frontend_save_cb(obs_data_t *save_data, bool saving,
-                                          void *private_data) {
-    ((ObsSceneTreeView *)private_data)->ObsFrontendSave(save_data, saving);
+  // Static save/load callback forwarder registered into the OBS frontend system.
+  inline static void obs_frontend_save_cb(obs_data_t* save_data, bool saving,
+                                          void* private_data) {
+    reinterpret_cast<ObsSceneTreeView*>(private_data)->ObsFrontendSave(
+        save_data, saving);
   }
 
+  // Internal handler responding to OBS lifecycle and scene changes.
   void ObsFrontendEvent(enum obs_frontend_event event);
-  void ObsFrontendSave(obs_data_t *save_data, bool saving);
+
+  // Internal handler saving configuration variables when OBS initiates updates.
+  void ObsFrontendSave(obs_data_t* save_data, bool saving);
 };
 
-#endif // OBS_SCENE_TREE_VIEW_H
+}  // namespace scene_tree_view
+
+#endif  // OBS_SCENE_TREE_VIEW_OBS_SCENE_TREE_VIEW_H_
