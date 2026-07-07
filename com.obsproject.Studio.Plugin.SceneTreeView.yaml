@@ -1,0 +1,21 @@
+id: com.obsproject.Studio.Plugin.SceneTreeView
+branch: stable
+runtime: com.obsproject.Studio
+runtime-version: stable
+sdk: org.kde.Sdk//6.8
+build-extension: true
+separate-locales: false
+
+build-options:
+  prefix: /app/plugins/SceneTreeView
+  libdir: lib/obs-plugins
+
+modules:
+  - name: obs-scene-tree-view
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=RelWithDebInfo
+      - -DBUILD_IN_OBS=OFF
+    sources:
+      - type: dir
+        path: .

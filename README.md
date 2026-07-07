@@ -123,6 +123,25 @@ After building, install the plugin into the system OBS installation:
 - OBS 32.x is required (strict version matching)
 - Plugin must be built against the same libobs version as your OBS installation
 
+## Installation from Flatpak (Linux)
+
+For users who install OBS Studio via Flatpak, you can install the plugin as a Flatpak extension:
+
+1) Download the latest `obs-scene-tree-view.flatpak` from GitHub Releases
+2) Install the extension:
+   ```bash
+   flatpak install obs-scene-tree-view.flatpak
+   ```
+3) Start OBS Studio:
+   ```bash
+   flatpak run com.obsproject.Studio
+   ```
+4) Enable the dock: View → Docks → Scene Tree View
+
+**Notes:**
+- This only works with the Flatpak version of OBS Studio
+- For native OBS installations, use the standard Linux installation above
+
 ## Installation from Release ZIP (macOS)
 
 1. Download the latest `obs-scene-tree-view-macos.zip` from GitHub Releases
