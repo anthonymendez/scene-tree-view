@@ -254,6 +254,7 @@ jobs:
           manifest-path: com.obsproject.Studio.Plugin.SceneTreeView.yaml
           bundle: obs-scene-tree-view.flatpak
           cache-key: flatpak-builder-${{ github.sha }}
+          upload-artifact: false
 
       - name: Upload Flatpak
         uses: actions/upload-artifact@v4
