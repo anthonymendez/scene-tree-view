@@ -20,7 +20,7 @@ This document provides detailed installation instructions for the Scene Tree Vie
 ### Installation Steps
 
 1. **Download the Plugin**
-   - Download `obs-scene-tree-view-windows-x64.zip` from the [GitHub Releases](https://github.com/TheThirdRail/scene-tree-view/releases) page
+   - Download `obs-scene-tree-view-windows-x64.zip` from the [GitHub Releases](https://github.com/anthonymendez/scene-tree-view/releases) page
 
 2. **Close OBS Studio**
    - Ensure OBS Studio is completely closed (check Task Manager if needed)
@@ -65,7 +65,7 @@ This document provides detailed installation instructions for the Scene Tree Vie
 ### Installation Steps
 
 1. **Download the Plugin**
-   - Download `obs-scene-tree-view-linux-x86_64.zip` from the [GitHub Releases](https://github.com/TheThirdRail/scene-tree-view/releases) page
+   - Download `obs-scene-tree-view-linux-x86_64.zip` from the [GitHub Releases](https://github.com/anthonymendez/scene-tree-view/releases) page
 
 2. **Close OBS Studio**
    - Ensure OBS Studio is completely closed
@@ -112,7 +112,7 @@ This document provides detailed installation instructions for the Scene Tree Vie
 ### Installation Steps
 
 1. **Download the Plugin**
-   - Download `obs-scene-tree-view-macos.zip` from the [GitHub Releases](https://github.com/TheThirdRail/scene-tree-view/releases) page
+   - Download `obs-scene-tree-view-macos.zip` from the [GitHub Releases](https://github.com/anthonymendez/scene-tree-view/releases) page
 
 2. **Close OBS Studio**
    - Ensure OBS Studio is completely closed
@@ -208,7 +208,7 @@ This document provides detailed installation instructions for the Scene Tree Vie
 
 For additional help:
 1. Check the main [README.md](README.md) for more information
-2. Search existing [GitHub Issues](https://github.com/TheThirdRail/scene-tree-view/issues)
+2. Search existing [GitHub Issues](https://github.com/anthonymendez/scene-tree-view/issues)
 3. Create a new issue with:
    - OBS Studio version
    - Plugin version

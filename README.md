@@ -35,7 +35,7 @@ A powerful OBS Studio plugin that adds a hierarchical scene tree view dock, enab
 
 Official builds for Windows, macOS, and Linux are published on the GitHub Releases page:
 
-- https://github.com/TheThirdRail/obs_scene_tree_view/releases
+- https://github.com/anthonymendez/scene-tree-view/releases
 
 Each ZIP is packaged with a system-level folder layout so you can unzip directly into your system directories and everything “falls into place.” An INSTALL.txt is included inside each ZIP with step-by-step instructions.
 
@@ -427,7 +427,7 @@ This project is licensed under the **GNU General Public License v2.0 or later** 
 For issues, questions, or suggestions:
 
 1. Check the [Troubleshooting](#troubleshooting) section
-2. Search existing [GitHub Issues](https://github.com/TheThirdRail/obs_scene_tree_view/issues)
+2. Search existing [GitHub Issues](https://github.com/anthonymendez/scene-tree-view/issues)
 3. Create a new issue with:
    - OBS Studio version
    - Plugin version
