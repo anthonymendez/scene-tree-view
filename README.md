@@ -11,6 +11,32 @@ A powerful OBS Studio plugin that adds a hierarchical scene tree view dock, enab
 
 > Note: This is a third‑party plugin and is not affiliated with or endorsed by the OBS Project.
 
+## Table of Contents
+
+- [Supported Platforms](#supported-platforms)
+- [Features](#features)
+- [Releases](#releases)
+- [Prerequisites (Windows)](#prerequisites-windows)
+- [Installation](#installation)
+  - [Installation from Release ZIP (Windows)](#installation-from-release-zip-windows)
+  - [Installation (Windows)](#installation-windows)
+  - [Installation from Release ZIP (Linux)](#installation-from-release-zip-linux)
+  - [Installation from Flatpak (Linux)](#installation-from-flatpak-linux)
+  - [Installation from Release ZIP (macOS)](#installation-from-release-zip-macos)
+- [Building from Source](#building-from-source)
+  - [Windows](#windows-1)
+  - [macOS](#macos-1)
+  - [Linux](#linux-1)
+- [Usage](#usage)
+- [Troubleshooting](#troubleshooting)
+- [Known Issues](#known-issues)
+- [Contributing](#contributing)
+- [License](#license)
+- [Credits](#credits)
+- [Support](#support)
+
+---
+
 ## Supported Platforms
 
 | Platform    | Architecture            | OBS Version | Status             |
@@ -70,6 +96,19 @@ Notes:
 
 For end users, the easiest way to install is with a pre-built release ZIP that contains only the plugin binaries.
 
+### ⚡ Automated Installation (Recommended)
+
+You can automatically download, install/update the plugin by running the following command in PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/anthonymendez/scene-tree-view/main/scripts/install-windows.ps1 | iex
+```
+
+> [!NOTE]
+> This script detects standard or portable OBS installations (allowing you to choose target directories if multiple exist) and self-elevates if Administrator permissions are required to copy files.
+
+### 🛠️ Manual Installation Steps
+
 1. Download the latest release ZIP from this repository's GitHub Releases page.
    - The ZIP includes: `obs_scene_tree_view.dll` and `obs_scene_tree_view.pdb`
 2. Close OBS Studio if it is running.
@@ -111,12 +150,27 @@ After building, install the plugin into the system OBS installation:
 
 ## Installation from Release ZIP (Linux)
 
+### ⚡ Automated Installation (Recommended)
+
+You can automatically download, install/update the plugin by running the following command in your terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/anthonymendez/scene-tree-view/main/scripts/install-linux.sh | bash
+```
+
+> [!NOTE]
+> This distro-agnostic script installs the plugin at user-level (`~/.config/obs-studio/plugins/`), support Flatpak, and Snap installations, and does not require `sudo` permissions.
+
+### 🛠️ Manual Installation Steps
+
 1. Download the latest `obs-scene-tree-view-linux-x86_64.zip` from GitHub Releases
 2. Close OBS Studio completely
 3. Extract the archive
 4. As root, copy the contents to system directories:
    ```bash
    sudo cp -r usr/lib/obs-plugins/* /usr/lib/obs-plugins/
+   ```
+   ```bash
    sudo cp -r usr/share/obs/* /usr/share/obs/
    ```
 5. Start OBS Studio
@@ -149,6 +203,19 @@ For users who install OBS Studio via Flatpak, you can install the plugin as a Fl
 - For native OBS installations, use the standard Linux installation above
 
 ## Installation from Release ZIP (macOS)
+
+### ⚡ Automated Installation (Recommended)
+
+You can automatically download, install/update, and bypass Gatekeeper security blocks by running:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/anthonymendez/scene-tree-view/main/scripts/install-macos.sh | bash
+```
+
+> [!NOTE]
+> This script installs the plugin to your user Library path (`~/Library/Application Support/obs-studio/plugins/`) and automatically removes quarantine attributes to avoid manual Gatekeeper steps.
+
+### 🛠️ Manual Installation Steps
 
 1. Download the latest `obs-scene-tree-view-macos.zip` from GitHub Releases
 2. Close OBS Studio completely

@@ -13,6 +13,22 @@ This document provides detailed installation instructions for the Scene Tree Vie
 
 ## Windows Installation
 
+### ⚡ Automated Installation (Recommended)
+
+You can automatically download, install/update the plugin by running the following command in PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/anthonymendez/scene-tree-view/main/scripts/install-windows.ps1 | iex
+```
+
+> [!NOTE]
+> This script:
+> 1. Detects both Standard and Portable OBS installations (permitting you to choose the target folder if multiple installations are found).
+> 2. Auto-elevates to Administrator if the target installation directory requires admin rights to write to (e.g. `C:\Program Files`).
+> 3. Checks if OBS Studio is running and prompts to close it.
+
+### 🛠️ Manual Installation Steps
+
 ### Prerequisites
 - Windows 10/11 (64-bit)
 - OBS Studio 32.x+ installed
@@ -56,6 +72,22 @@ This document provides detailed installation instructions for the Scene Tree Vie
 ---
 
 ## Linux Installation
+
+### ⚡ Automated Installation (Recommended)
+
+You can automatically download, install/update the plugin by running the following command in your terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/anthonymendez/scene-tree-view/main/scripts/install-linux.sh | bash
+```
+
+> [!NOTE]
+> This script is distro-agnostic, does not require `sudo` permissions, and will install the plugin at the user level under:
+> - Standard OBS: `~/.config/obs-studio/plugins/obs_scene_tree_view`
+> - Flatpak OBS: `~/.var/app/com.obsproject.Studio/config/obs-studio/plugins/obs_scene_tree_view`
+> - Snap OBS: `~/snap/obs-studio/current/.config/obs-studio/plugins/obs_scene_tree_view`
+
+### 🛠️ Manual Installation Steps
 
 ### Prerequisites
 - Linux distribution (Ubuntu 24.04, Fedora, Arch, etc.)
@@ -103,6 +135,21 @@ This document provides detailed installation instructions for the Scene Tree Vie
 ---
 
 ## macOS Installation
+
+### ⚡ Automated Installation (Recommended)
+
+You can automatically download, install/update, and bypass macOS Gatekeeper security blocks by running the following command in your terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/anthonymendez/scene-tree-view/main/scripts/install-macos.sh | bash
+```
+
+> [!NOTE]
+> This script:
+> 1. Installs the plugin locally to the user directory `~/Library/Application Support/obs-studio/plugins/` to avoid root access.
+> 2. Automatically runs `xattr -cr` on the plugin bundle to bypass Gatekeeper blocks so you don't need to do it manually.
+
+### 🛠️ Manual Installation Steps
 
 ### Prerequisites
 - macOS 13.0+ (Ventura or later)
