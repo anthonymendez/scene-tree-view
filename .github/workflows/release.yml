@@ -20,7 +20,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: windows-latest
+          - os: windows-2022
             platform: windows-x64
             script: ./scripts/package-windows.ps1 -BuildDir build -OutDir dist
             shell: pwsh
@@ -46,7 +46,7 @@ jobs:
           submodules: recursive
 
       - name: Setup Build Environment (Windows)
-        if: matrix.os == 'windows-latest'
+        if: matrix.os == 'windows-2022'
         uses: microsoft/setup-msbuild@v2
 
       - name: Install Dependencies (Linux)
@@ -140,7 +140,7 @@ jobs:
             --config Release --prefix "${{ github.workspace }}/obs-build" --component Development
 
       - name: Download OBS Dependencies (Windows)
-        if: matrix.os == 'windows-latest'
+        if: matrix.os == 'windows-2022'
         shell: pwsh
         run: |
           # Download pre-built OBS dependencies
@@ -170,7 +170,7 @@ jobs:
           Expand-Archive -Path $OBS_FILE -DestinationPath "${{ github.workspace }}" -Force
 
       - name: Build OBS libobs (Windows)
-        if: matrix.os == 'windows-latest'
+        if: matrix.os == 'windows-2022'
         shell: pwsh
         run: |
           Write-Host "Configuring OBS Studio..."
@@ -189,7 +189,7 @@ jobs:
             --config Release --prefix "${{ github.workspace }}/obs-build" --component Development
 
       - name: Build Plugin (Windows)
-        if: matrix.os == 'windows-latest'
+        if: matrix.os == 'windows-2022'
         shell: pwsh
         run: |
           Write-Host "Configuring plugin..."
@@ -200,7 +200,7 @@ jobs:
           cmake --build build --config Release
 
       - name: Build Plugin (Linux/macOS)
-        if: matrix.os != 'windows-latest'
+        if: matrix.os != 'windows-2022'
         run: |
           if [ "${{ matrix.os }}" = "macos-15" ]; then
             echo "Configuring plugin for macOS..."
@@ -219,12 +219,12 @@ jobs:
           cmake --build build --config Release
 
       - name: Package Plugin (Windows)
-        if: matrix.os == 'windows-latest'
+        if: matrix.os == 'windows-2022'
         shell: pwsh
         run: ${{ matrix.script }}
 
       - name: Package Plugin (Linux/macOS)
-        if: matrix.os != 'windows-latest'
+        if: matrix.os != 'windows-2022'
         shell: bash
         run: ${{ matrix.script }}
 
