@@ -29,15 +29,7 @@
 
 #include "obs_scene_tree_view/version.h"
 
-OBS_DECLARE_MODULE();
-OBS_MODULE_AUTHOR(PROJECT_AUTHOR);
-OBS_MODULE_USE_DEFAULT_LOCALE(PROJECT_DATA_FOLDER, "en-US");
-
 namespace {
-
-// Global dock pointer and registration status for retry logic.
-scene_tree_view::ObsSceneTreeView *g_stv_dock = nullptr;
-bool g_stv_added = false;
 
 // Sets dynamic "class" and forces stylesheet recalculation on a QWidget.
 void setClasses(QWidget *widget, const QString &newClasses) {
@@ -75,66 +67,7 @@ QIcon NonDimmedDisabled(const QIcon &src) {
 
 } // namespace
 
-MODULE_EXPORT const char *obs_module_description(void) {
-  return obs_module_text("Description");
-}
-
-MODULE_EXPORT const char *obs_module_name(void) {
-  return obs_module_text("SceneTreeView");
-}
-
-#define QT_UTF8(str) QString::fromUtf8(str)
 #define QT_TO_UTF8(str) str.toUtf8().constData()
-
-MODULE_EXPORT bool obs_module_load(void) {
-  blog(LOG_INFO, "[%s] loaded version %s", obs_module_name(), PROJECT_VERSION);
-
-  BPtr<char> stv_config_path = obs_module_config_path("");
-  if (!os_mkdir(stv_config_path)) {
-    blog(LOG_WARNING, "[%s] failed to create config dir '%s'",
-         obs_module_name(), stv_config_path.Get());
-  }
-
-  QMainWindow *main_window =
-      reinterpret_cast<QMainWindow *>(obs_frontend_get_main_window());
-  obs_frontend_push_ui_translation(obs_module_get_string);
-
-  scene_tree_view::ObsSceneTreeView *view =
-      new scene_tree_view::ObsSceneTreeView(main_window);
-  view->setObjectName("obs_scene_tree_view");
-
-  const char *t = obs_module_text("SceneTreeView.Title");
-  QString title = QString::fromUtf8(t ? t : "");
-  if (title.isEmpty() || title == QLatin1String("SceneTreeView.Title")) {
-    title = QStringLiteral("Scene Tree View");
-  }
-
-  bool added = obs_frontend_add_dock_by_id("obs_scene_tree_view",
-                                           QT_TO_UTF8(title), view);
-
-  if (added) {
-    blog(LOG_INFO, "[%s] registered via add_dock_by_id", obs_module_name());
-
-    // Configure dock features on the OBS-created QDockWidget wrapper.
-    if (auto *dockWidget = qobject_cast<QDockWidget *>(view->parentWidget())) {
-      dockWidget->setAllowedAreas(Qt::AllDockWidgetAreas);
-      dockWidget->setFeatures(QDockWidget::DockWidgetClosable |
-                              QDockWidget::DockWidgetMovable |
-                              QDockWidget::DockWidgetFloatable);
-    }
-  } else {
-    blog(LOG_ERROR, "[%s] failed to register dock via add_dock_by_id",
-         obs_module_name());
-  }
-
-  g_stv_dock = view;
-  g_stv_added = added;
-  obs_frontend_pop_ui_translation();
-
-  return true;
-}
-
-MODULE_EXPORT void obs_module_unload() {}
 
 namespace scene_tree_view {
 
@@ -412,266 +345,6 @@ void ObsSceneTreeView::UpdateTreeView() {
   SaveSceneTree(scene_collection_name_);
 }
 
-void ObsSceneTreeView::on_toggleListboxToolbars(bool visible) {
-  stv_dock_.listbox->setVisible(visible);
-}
-
-void ObsSceneTreeView::on_stvAddFolder_clicked() {
-  int row;
-  QStandardItem *selected =
-      scene_tree_items_.itemFromIndex(stv_dock_.stvTree->currentIndex());
-  if (!selected) {
-    selected = scene_tree_items_.invisibleRootItem();
-    row = selected->rowCount();
-  } else {
-    if (selected->type() == StvItemModel::kFolder) {
-      row = selected->rowCount();
-    } else {
-      row = selected->row() + 1;
-      selected = scene_tree_items_.GetParentOrRoot(selected->index());
-    }
-  }
-
-  QString format{obs_module_text("SceneTreeView.DefaultFolderName")};
-  if (!format.contains("%1")) {
-    format = QStringLiteral("Folder %1");
-  }
-
-  int i = 1;
-  QString new_folder_name = format.arg(i);
-  while (
-      !scene_tree_items_.CheckFolderNameUniqueness(new_folder_name, selected)) {
-    new_folder_name = format.arg(++i);
-  }
-
-  StvFolderItem *pItem = new StvFolderItem(new_folder_name);
-  selected->insertRow(row, pItem);
-  scene_tree_items_.AddChildToUserOrder(selected, pItem);
-  scene_tree_items_.SortFolder(selected);
-
-  SaveSceneTree(scene_collection_name_);
-}
-
-void ObsSceneTreeView::on_stvRemove_released() {
-  QStandardItem *selected =
-      scene_tree_items_.itemFromIndex(stv_dock_.stvTree->currentIndex());
-  if (selected) {
-    assert(selected->type() == StvItemModel::kFolder ||
-           selected->type() == StvItemModel::kScene);
-    if (selected->type() == StvItemModel::kScene) {
-      QMetaObject::invokeMethod(remove_scene_act_, "triggered");
-    } else {
-      RemoveFolder(selected);
-    }
-  }
-}
-
-void ObsSceneTreeView::on_stvTree_customContextMenuRequested(
-    const QPoint &pos) {
-  QStandardItem *item =
-      scene_tree_items_.itemFromIndex(stv_dock_.stvTree->indexAt(pos));
-
-  QMainWindow *main_window =
-      reinterpret_cast<QMainWindow *>(obs_frontend_get_main_window());
-
-  QMenu popup(this);
-
-  popup.addAction(obs_module_text("SceneTreeView.AddScene"), main_window,
-                  SLOT(on_actionAddScene_triggered()));
-
-  popup.addAction(obs_module_text("SceneTreeView.AddFolder"), this,
-                  SLOT(on_stvAddFolder_clicked()));
-
-  popup.addSeparator();
-
-  QStandardItem *folder_item = nullptr;
-  if (!item) {
-    folder_item = scene_tree_items_.invisibleRootItem();
-  } else if (item->type() == StvItemModel::kFolder) {
-    folder_item = item;
-  } else {
-    folder_item = scene_tree_items_.GetParentOrRoot(item->index());
-  }
-
-  QActionGroup *sortGroup = new QActionGroup(&popup);
-
-  QAction *sortUser =
-      popup.addAction(obs_module_text("SceneTreeView.SortByUser"));
-  sortUser->setCheckable(true);
-  sortGroup->addAction(sortUser);
-
-  QAction *sortAsc = popup.addAction(obs_module_text("SceneTreeView.SortAsc"));
-  sortAsc->setCheckable(true);
-  sortGroup->addAction(sortAsc);
-
-  QAction *sortDesc =
-      popup.addAction(obs_module_text("SceneTreeView.SortDesc"));
-  sortDesc->setCheckable(true);
-  sortGroup->addAction(sortDesc);
-
-  int current_mode = folder_item->data(StvItemModel::kSortMode).toInt();
-  if (current_mode == static_cast<int>(StvItemModel::SortMode::kAlphaAsc)) {
-    sortAsc->setChecked(true);
-  } else if (current_mode ==
-             static_cast<int>(StvItemModel::SortMode::kAlphaDesc)) {
-    sortDesc->setChecked(true);
-  } else {
-    sortUser->setChecked(true);
-  }
-
-  auto setSortMode = [this, folder_item](StvItemModel::SortMode mode) {
-    int current_mode = folder_item->data(StvItemModel::kSortMode).toInt();
-    if (current_mode == static_cast<int>(StvItemModel::SortMode::kUser) &&
-        mode != StvItemModel::SortMode::kUser) {
-      QVariantList user_list;
-      for (int j = 0; j < folder_item->rowCount(); ++j) {
-        QStandardItem *child = folder_item->child(j);
-        QVariantMap map;
-        map["name"] = child->text();
-        map["type"] = child->type();
-        user_list.append(map);
-      }
-      folder_item->setData(user_list, StvItemModel::kUserOrder);
-    }
-
-    folder_item->setData(static_cast<int>(mode), StvItemModel::kSortMode);
-
-    if (mode == StvItemModel::SortMode::kUser) {
-      scene_tree_items_.RestoreUserOrder(folder_item);
-      folder_item->setData(QVariant(), StvItemModel::kUserOrder);
-    } else {
-      scene_tree_items_.SortFolder(folder_item);
-    }
-
-    SaveSceneTree(scene_collection_name_);
-  };
-
-  connect(sortUser, &QAction::triggered,
-          [setSortMode]() { setSortMode(StvItemModel::SortMode::kUser); });
-  connect(sortAsc, &QAction::triggered,
-          [setSortMode]() { setSortMode(StvItemModel::SortMode::kAlphaAsc); });
-  connect(sortDesc, &QAction::triggered,
-          [setSortMode]() { setSortMode(StvItemModel::SortMode::kAlphaDesc); });
-
-  if (item) {
-    if (item->type() == StvItemModel::kScene) {
-      QAction *copyFilters = new QAction(QTStr("Copy.Filters"), this);
-      copyFilters->setEnabled(false);
-      connect(copyFilters, SIGNAL(triggered()), main_window,
-              SLOT(SceneCopyFilters()));
-      QAction *pasteFilters = new QAction(QTStr("Paste.Filters"), this);
-      connect(pasteFilters, SIGNAL(triggered()), main_window,
-              SLOT(ScenePasteFilters()));
-
-      popup.addSeparator();
-      popup.addAction(QTStr("Duplicate"), main_window,
-                      SLOT(DuplicateSelectedScene()));
-      popup.addAction(copyFilters);
-      popup.addAction(pasteFilters);
-      popup.addSeparator();
-      QAction *rename = popup.addAction(QTStr("Rename"));
-      QObject::connect(rename, SIGNAL(triggered()), stv_dock_.stvTree,
-                       SLOT(EditSelectedItem()));
-      popup.addAction(QTStr("Remove"), main_window,
-                      SLOT(RemoveSelectedScene()));
-      popup.addSeparator();
-
-      QAction *sceneWindow = popup.addAction(QTStr("SceneWindow"), main_window,
-                                             SLOT(OpenSceneWindow()));
-
-      popup.addAction(sceneWindow);
-      popup.addAction(QTStr("Screenshot.Scene"), main_window,
-                      SLOT(ScreenshotScene()));
-      popup.addSeparator();
-      popup.addAction(QTStr("Filters"), main_window, SLOT(OpenSceneFilters()));
-
-      popup.addSeparator();
-
-      per_scene_transition_menu_.reset(
-          CreatePerSceneTransitionMenu(main_window));
-      popup.addMenu(per_scene_transition_menu_.get());
-
-      popup.addSeparator();
-
-      QAction *multiviewAction = popup.addAction(QTStr("ShowInMultiview"));
-
-      OBSSourceAutoRelease source = scene_tree_items_.GetCurrentScene();
-      OBSDataAutoRelease sceneSettings =
-          obs_source_get_private_settings(source);
-
-      obs_data_set_default_bool(sceneSettings, "show_in_multiview", true);
-      bool show = obs_data_get_bool(sceneSettings, "show_in_multiview");
-
-      multiviewAction->setCheckable(true);
-      multiviewAction->setChecked(show);
-
-      auto showInMultiview = [main_window](OBSData settings) {
-        bool show = obs_data_get_bool(settings, "show_in_multiview");
-        obs_data_set_bool(settings, "show_in_multiview", !show);
-        QMetaObject::invokeMethod(main_window, "ScenesReordered");
-      };
-
-      connect(multiviewAction, &QAction::triggered,
-              std::bind(showInMultiview, sceneSettings.Get()));
-
-      copyFilters->setEnabled(obs_source_filter_count(source) > 0);
-    }
-
-    popup.addSeparator();
-
-    // Enable/disable scene or folder icon.
-    const auto toggleName =
-        item->type() == StvItemModel::kScene
-            ? obs_module_text("SceneTreeView.ToggleSceneIcons")
-            : obs_module_text("SceneTreeView.ToggleFolderIcons");
-
-    QAction *toggleIconAction = popup.addAction(toggleName);
-    toggleIconAction->setCheckable(true);
-
-    const auto configName = item->type() == StvItemModel::kScene
-                                ? "ShowSceneIcons"
-                                : "ShowFolderIcons";
-    const bool showIcon = config_get_bool(obs_frontend_get_user_config(),
-                                          "SceneTreeView", configName);
-
-    toggleIconAction->setChecked(showIcon);
-
-    auto toggleIcon = [this, showIcon, configName, item]() {
-      config_set_bool(obs_frontend_get_user_config(), "SceneTreeView",
-                      configName, !showIcon);
-      config_save(obs_frontend_get_user_config());
-      scene_tree_items_.SetIconVisibility(
-          !showIcon, (StvItemModel::QItemType)item->type());
-    };
-
-    connect(toggleIconAction, &QAction::triggered, toggleIcon);
-  }
-
-  popup.exec(QCursor::pos());
-}
-
-void ObsSceneTreeView::on_SceneNameEdited(QWidget *editor) {
-  QStandardItem *selected =
-      scene_tree_items_.itemFromIndex(stv_dock_.stvTree->currentIndex());
-  if (selected->type() == StvItemModel::kScene) {
-    QMainWindow *main_window =
-        reinterpret_cast<QMainWindow *>(obs_frontend_get_main_window());
-    QMetaObject::invokeMethod(main_window, "SceneNameEdited",
-                              Q_ARG(QWidget *, editor));
-  } else {
-    QLineEdit *edit = qobject_cast<QLineEdit *>(editor);
-    std::string text = QT_TO_UTF8(edit->text().trimmed());
-
-    selected->setText(scene_tree_items_.CreateUniqueFolderName(
-        selected, scene_tree_items_.GetParentOrRoot(selected->index())));
-
-    QStandardItem *parent =
-        scene_tree_items_.GetParentOrRoot(selected->index());
-    scene_tree_items_.SortFolder(parent);
-    SaveSceneTree(scene_collection_name_);
-  }
-}
-
 void ObsSceneTreeView::SelectCurrentScene() {
   QStandardItem *item = scene_tree_items_.GetCurrentSceneItem();
   if (item && item->index() != stv_dock_.stvTree->currentIndex()) {
@@ -680,135 +353,91 @@ void ObsSceneTreeView::SelectCurrentScene() {
   }
 }
 
-void ObsSceneTreeView::RemoveFolder(QStandardItem *folder) {
-  int row = 0;
-  int row_count = folder->rowCount();
-  while (row < row_count) {
-    QStandardItem *item = folder->child(row);
-    assert(item->type() == StvItemModel::kFolder ||
-           item->type() == StvItemModel::kScene);
+void ObsSceneTreeView::ApplyThemeAndIcons() {
+  QMainWindow *main_window =
+      reinterpret_cast<QMainWindow *>(obs_frontend_get_main_window());
+  if (add_scene_act_) {
+    stv_dock_.stvAdd->setIcon(add_scene_act_->icon());
+  }
+  if (remove_scene_act_) {
+    stv_dock_.stvRemove->setIcon(remove_scene_act_->icon());
+  }
+  stv_dock_.stvAddFolder->setIcon(
+      main_window->property("groupIcon").value<QIcon>());
 
-    if (item->type() == StvItemModel::kScene) {
-      obs_weak_source_t *weak =
-          item->data(StvItemModel::kObsScene).value<ObsWeakSourcePtr>().ptr;
-      OBSSourceAutoRelease source = OBSGetStrongRef(weak);
-
-      scene_tree_items_.SetSelectedScene(
-          item, obs_frontend_preview_program_mode_active());
-      QMetaObject::invokeMethod(remove_scene_act_, "triggered");
-    } else {
-      RemoveFolder(item);
-    }
-
-    // Check if item was deleted. If not, move to next row.
-    if (row_count == folder->rowCount()) {
-      ++row;
-    }
-
-    row_count = folder->rowCount();
+  if (move_scene_up_act_) {
+    stv_dock_.stvMoveUp->setIcon(NonDimmedDisabled(move_scene_up_act_->icon()));
+  }
+  if (move_scene_down_act_) {
+    stv_dock_.stvMoveDown->setIcon(
+        NonDimmedDisabled(move_scene_down_act_->icon()));
   }
 
-  // Remove folder if empty.
-  if (folder->rowCount() == 0) {
-    scene_tree_items_.GetParentOrRoot(folder->index())
-        ->removeRow(folder->row());
-  }
-}
-
-} // namespace scene_tree_view
-
-Q_DECLARE_METATYPE(OBSSource);
-
-namespace scene_tree_view {
-
-static inline OBSSource GetTransitionComboItem(QComboBox *combo, int idx) {
-  return combo->itemData(idx).value<OBSSource>();
-}
-
-QMenu *
-ObsSceneTreeView::CreatePerSceneTransitionMenu(QMainWindow *main_window) {
-  OBSSourceAutoRelease scene = scene_tree_items_.GetCurrentScene();
-  QMenu *menu = new QMenu(QTStr("TransitionOverride"));
-  QAction *action;
-
-  OBSDataAutoRelease sceneSettings = obs_source_get_private_settings(scene);
-
-  obs_data_set_default_int(sceneSettings, "transition_duration", 300);
-
-  const char *curTransition = obs_data_get_string(sceneSettings, "transition");
-  int curDuration = (int)obs_data_get_int(sceneSettings, "transition_duration");
-
-  QSpinBox *duration = new QSpinBox(menu);
-  duration->setMinimum(50);
-  duration->setSuffix(" ms");
-  duration->setMaximum(20000);
-  duration->setSingleStep(50);
-  duration->setValue(curDuration);
-
-  QComboBox *combo = main_window->findChild<QComboBox *>("transitions");
-  assert(combo);
-
-  auto setTransition = [this, combo](QAction *action) {
-    int idx = action->property("transition_index").toInt();
-    OBSSourceAutoRelease scene = scene_tree_items_.GetCurrentScene();
-    OBSDataAutoRelease sceneSettings = obs_source_get_private_settings(scene);
-
-    if (idx == -1) {
-      obs_data_set_string(sceneSettings, "transition", "");
+  auto copyProps = [](QAction *act, QWidget *w) {
+    if (!act || !w) {
       return;
     }
-
-    OBSSource tr = GetTransitionComboItem(combo, idx);
-
-    if (tr) {
-      const char *name = obs_source_get_name(tr);
-      obs_data_set_string(sceneSettings, "transition", name);
+    const auto names = act->dynamicPropertyNames();
+    for (const QByteArray &n : names) {
+      w->setProperty(n.constData(), act->property(n.constData()));
     }
   };
+  copyProps(add_scene_act_, stv_dock_.stvAdd);
+  copyProps(remove_scene_act_, stv_dock_.stvRemove);
 
-  auto setDuration = [this](int duration) {
-    OBSSourceAutoRelease scene = scene_tree_items_.GetCurrentScene();
-    OBSDataAutoRelease sceneSettings = obs_source_get_private_settings(scene);
+  QString addCls =
+      add_scene_act_ ? add_scene_act_->property("class").toString() : QString();
 
-    obs_data_set_int(sceneSettings, "transition_duration", duration);
-  };
+  copyProps(move_scene_up_act_, stv_dock_.stvMoveUp);
+  copyProps(move_scene_down_act_, stv_dock_.stvMoveDown);
 
-  connect(duration, (void (QSpinBox::*)(int))&QSpinBox::valueChanged,
-          setDuration);
+  QString remCls = remove_scene_act_
+                       ? remove_scene_act_->property("class").toString()
+                       : QString();
 
-  std::string none = "None";
-  for (int i = -1; i < combo->count(); i++) {
-    const char *name = "";
-
-    if (i >= 0) {
-      OBSSource tr;
-      tr = GetTransitionComboItem(combo, i);
-      if (!tr) {
-        continue;
-      }
-      name = obs_source_get_name(tr);
-    }
-
-    bool match = (name && strcmp(name, curTransition) == 0);
-
-    if (!name || !*name) {
-      name = none.c_str();
-    }
-
-    action = menu->addAction(QT_UTF8(name));
-    action->setProperty("transition_index", i);
-    action->setCheckable(true);
-    action->setChecked(match);
-
-    connect(action, &QAction::triggered, std::bind(setTransition, action));
+  QString addClasses = QStringLiteral("btn-tool");
+  if (!addCls.isEmpty()) {
+    addClasses += QStringLiteral(" ") + addCls;
+  } else {
+    addClasses += QStringLiteral(" icon-plus");
+  }
+  QString removeClasses = QStringLiteral("btn-tool");
+  if (!remCls.isEmpty()) {
+    removeClasses += QStringLiteral(" ") + remCls;
+  } else {
+    removeClasses += QStringLiteral(" icon-trash");
   }
 
-  QWidgetAction *durationAction = new QWidgetAction(menu);
-  durationAction->setDefaultWidget(duration);
+  QString upCls = move_scene_up_act_
+                      ? move_scene_up_act_->property("class").toString()
+                      : QString();
+  QString downCls = move_scene_down_act_
+                        ? move_scene_down_act_->property("class").toString()
+                        : QString();
 
-  menu->addSeparator();
-  menu->addAction(durationAction);
-  return menu;
+  QString upClasses = QStringLiteral("btn-tool");
+  if (!upCls.isEmpty()) {
+    upClasses += QStringLiteral(" ") + upCls;
+  } else {
+    upClasses += QStringLiteral(" icon-up");
+  }
+  QString downClasses = QStringLiteral("btn-tool");
+  if (!downCls.isEmpty()) {
+    downClasses += QStringLiteral(" ") + downCls;
+  } else {
+    downClasses += QStringLiteral(" icon-down");
+  }
+
+  setClasses(stv_dock_.stvAdd, addClasses);
+  setClasses(stv_dock_.stvRemove, removeClasses);
+  setClasses(stv_dock_.stvAddFolder, QStringLiteral("btn-tool"));
+
+  setClasses(stv_dock_.stvMoveUp, upClasses);
+  setClasses(stv_dock_.stvMoveDown, downClasses);
+
+  QString qss = styleSheet();
+  setStyleSheet("/* */");
+  setStyleSheet(qss);
 }
 
 void ObsSceneTreeView::ObsFrontendEvent(enum obs_frontend_event event) {
@@ -837,96 +466,7 @@ void ObsSceneTreeView::ObsFrontendEvent(enum obs_frontend_event event) {
 
     SelectCurrentScene();
 
-    auto applyThemeAndIcons = [this]() {
-      QMainWindow *main_window =
-          reinterpret_cast<QMainWindow *>(obs_frontend_get_main_window());
-      if (add_scene_act_) {
-        stv_dock_.stvAdd->setIcon(add_scene_act_->icon());
-      }
-      if (remove_scene_act_) {
-        stv_dock_.stvRemove->setIcon(remove_scene_act_->icon());
-      }
-      stv_dock_.stvAddFolder->setIcon(
-          main_window->property("groupIcon").value<QIcon>());
-
-      if (move_scene_up_act_) {
-        stv_dock_.stvMoveUp->setIcon(
-            NonDimmedDisabled(move_scene_up_act_->icon()));
-      }
-      if (move_scene_down_act_) {
-        stv_dock_.stvMoveDown->setIcon(
-            NonDimmedDisabled(move_scene_down_act_->icon()));
-      }
-
-      auto copyProps = [](QAction *act, QWidget *w) {
-        if (!act || !w) {
-          return;
-        }
-        const auto names = act->dynamicPropertyNames();
-        for (const QByteArray &n : names) {
-          w->setProperty(n.constData(), act->property(n.constData()));
-        }
-      };
-      copyProps(add_scene_act_, stv_dock_.stvAdd);
-      copyProps(remove_scene_act_, stv_dock_.stvRemove);
-
-      QString addCls = add_scene_act_
-                           ? add_scene_act_->property("class").toString()
-                           : QString();
-
-      copyProps(move_scene_up_act_, stv_dock_.stvMoveUp);
-      copyProps(move_scene_down_act_, stv_dock_.stvMoveDown);
-
-      QString remCls = remove_scene_act_
-                           ? remove_scene_act_->property("class").toString()
-                           : QString();
-
-      QString addClasses = QStringLiteral("btn-tool");
-      if (!addCls.isEmpty()) {
-        addClasses += QStringLiteral(" ") + addCls;
-      } else {
-        addClasses += QStringLiteral(" icon-plus");
-      }
-      QString removeClasses = QStringLiteral("btn-tool");
-      if (!remCls.isEmpty()) {
-        removeClasses += QStringLiteral(" ") + remCls;
-      } else {
-        removeClasses += QStringLiteral(" icon-trash");
-      }
-
-      QString upCls = move_scene_up_act_
-                          ? move_scene_up_act_->property("class").toString()
-                          : QString();
-      QString downCls = move_scene_down_act_
-                            ? move_scene_down_act_->property("class").toString()
-                            : QString();
-
-      QString upClasses = QStringLiteral("btn-tool");
-      if (!upCls.isEmpty()) {
-        upClasses += QStringLiteral(" ") + upCls;
-      } else {
-        upClasses += QStringLiteral(" icon-up");
-      }
-      QString downClasses = QStringLiteral("btn-tool");
-      if (!downCls.isEmpty()) {
-        downClasses += QStringLiteral(" ") + downCls;
-      } else {
-        downClasses += QStringLiteral(" icon-down");
-      }
-
-      setClasses(stv_dock_.stvAdd, addClasses);
-      setClasses(stv_dock_.stvRemove, removeClasses);
-      setClasses(stv_dock_.stvAddFolder, QStringLiteral("btn-tool"));
-
-      setClasses(stv_dock_.stvMoveUp, upClasses);
-      setClasses(stv_dock_.stvMoveDown, downClasses);
-
-      QString qss = styleSheet();
-      setStyleSheet("/* */");
-      setStyleSheet(qss);
-    };
-
-    applyThemeAndIcons();
+    ApplyThemeAndIcons();
 
     stv_dock_.stvAdd->setEnabled(true);
     stv_dock_.stvRemove->setEnabled(true);
@@ -983,91 +523,7 @@ void ObsSceneTreeView::ObsFrontendEvent(enum obs_frontend_event event) {
     }
 
   } else if (event == OBS_FRONTEND_EVENT_THEME_CHANGED) {
-    QMainWindow *main_window =
-        reinterpret_cast<QMainWindow *>(obs_frontend_get_main_window());
-    if (add_scene_act_) {
-      stv_dock_.stvAdd->setIcon(add_scene_act_->icon());
-    }
-    if (remove_scene_act_) {
-      stv_dock_.stvRemove->setIcon(remove_scene_act_->icon());
-    }
-    stv_dock_.stvAddFolder->setIcon(
-        main_window->property("groupIcon").value<QIcon>());
-
-    if (move_scene_up_act_) {
-      stv_dock_.stvMoveUp->setIcon(
-          NonDimmedDisabled(move_scene_up_act_->icon()));
-    }
-    if (move_scene_down_act_) {
-      stv_dock_.stvMoveDown->setIcon(
-          NonDimmedDisabled(move_scene_down_act_->icon()));
-    }
-
-    auto copyProps = [](QAction *act, QWidget *w) {
-      if (!act || !w) {
-        return;
-      }
-
-      const auto names = act->dynamicPropertyNames();
-      for (const QByteArray &n : names) {
-        w->setProperty(n.constData(), act->property(n.constData()));
-      }
-    };
-    copyProps(add_scene_act_, stv_dock_.stvAdd);
-    copyProps(remove_scene_act_, stv_dock_.stvRemove);
-
-    copyProps(move_scene_up_act_, stv_dock_.stvMoveUp);
-    copyProps(move_scene_down_act_, stv_dock_.stvMoveDown);
-
-    QString addCls = add_scene_act_
-                         ? add_scene_act_->property("class").toString()
-                         : QString();
-    QString remCls = remove_scene_act_
-                         ? remove_scene_act_->property("class").toString()
-                         : QString();
-
-    QString addClasses = QStringLiteral("btn-tool");
-    if (!addCls.isEmpty()) {
-      addClasses += QStringLiteral(" ") + addCls;
-    } else {
-      addClasses += QStringLiteral(" icon-plus");
-    }
-    QString removeClasses = QStringLiteral("btn-tool");
-
-    QString upCls = move_scene_up_act_
-                        ? move_scene_up_act_->property("class").toString()
-                        : QString();
-    QString downCls = move_scene_down_act_
-                          ? move_scene_down_act_->property("class").toString()
-                          : QString();
-
-    if (!remCls.isEmpty()) {
-      removeClasses += QStringLiteral(" ") + remCls;
-    } else {
-      removeClasses += QStringLiteral(" icon-trash");
-    }
-    QString upClasses = QStringLiteral("btn-tool");
-    if (!upCls.isEmpty()) {
-      upClasses += QStringLiteral(" ") + upCls;
-    } else {
-      upClasses += QStringLiteral(" icon-up");
-    }
-    QString downClasses = QStringLiteral("btn-tool");
-    if (!downCls.isEmpty()) {
-      downClasses += QStringLiteral(" ") + downCls;
-    } else {
-      downClasses += QStringLiteral(" icon-down");
-    }
-
-    setClasses(stv_dock_.stvAdd, addClasses);
-    setClasses(stv_dock_.stvRemove, removeClasses);
-    setClasses(stv_dock_.stvAddFolder, QStringLiteral("btn-tool"));
-    setClasses(stv_dock_.stvMoveUp, upClasses);
-    setClasses(stv_dock_.stvMoveDown, downClasses);
-
-    QString qss = styleSheet();
-    setStyleSheet("/* */");
-    setStyleSheet(qss);
+    ApplyThemeAndIcons();
 
   } else if (event == OBS_FRONTEND_EVENT_SCENE_LIST_CHANGED) {
     UpdateTreeView();
@@ -1107,38 +563,6 @@ void ObsSceneTreeView::ObsFrontendSave(obs_data_t * /*save_data*/,
   if (saving) {
     SaveSceneTree(scene_collection_name_);
   }
-}
-
-void ObsSceneTreeView::on_stvMoveUp_released() {
-  const QModelIndex idx = stv_dock_.stvTree->currentIndex();
-  if (!idx.isValid()) {
-    return;
-  }
-  const int oldRow = idx.row();
-  QStandardItem *parent = scene_tree_items_.GetParentOrRoot(idx);
-  if (scene_tree_items_.MoveIndexByOne(idx, -1)) {
-    SaveSceneTree(scene_collection_name_);
-    if (parent && oldRow - 1 >= 0 && oldRow - 1 < parent->rowCount()) {
-      stv_dock_.stvTree->setCurrentIndex(parent->child(oldRow - 1)->index());
-    }
-  }
-  UpdateMoveButtonsEnabled();
-}
-
-void ObsSceneTreeView::on_stvMoveDown_released() {
-  const QModelIndex idx = stv_dock_.stvTree->currentIndex();
-  if (!idx.isValid()) {
-    return;
-  }
-  const int oldRow = idx.row();
-  QStandardItem *parent = scene_tree_items_.GetParentOrRoot(idx);
-  if (scene_tree_items_.MoveIndexByOne(idx, +1)) {
-    SaveSceneTree(scene_collection_name_);
-    if (parent && oldRow + 1 < parent->rowCount()) {
-      stv_dock_.stvTree->setCurrentIndex(parent->child(oldRow + 1)->index());
-    }
-  }
-  UpdateMoveButtonsEnabled();
 }
 
 void ObsSceneTreeView::UpdateMoveButtonsEnabled() {

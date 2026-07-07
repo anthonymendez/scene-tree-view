@@ -114,6 +114,9 @@ private:
   // Selects and focuses the active OBS scene in the tree widget.
   void SelectCurrentScene();
 
+  // Deduplicated theme and icon styling logic.
+  void ApplyThemeAndIcons();
+
   // Recursively removes folder items and deletes any nested OBS scenes.
   void RemoveFolder(QStandardItem *folder);
 
@@ -140,6 +143,9 @@ private:
   // Internal handler saving configuration variables when OBS initiates updates.
   void ObsFrontendSave(obs_data_t *save_data, bool saving);
 };
+
+extern ObsSceneTreeView *g_stv_dock;
+extern bool g_stv_added;
 
 } // namespace scene_tree_view
 

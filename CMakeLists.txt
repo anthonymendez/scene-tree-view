@@ -88,7 +88,9 @@ endif()
 # Include OBS dependencies configuration (sets CMAKE_PREFIX_PATH)
 
 set(LIB_SRC_FILES
+		obs_scene_tree_view/plugin_main.cpp
 		obs_scene_tree_view/obs_scene_tree_view.cpp
+		obs_scene_tree_view/obs_scene_tree_view_actions.cpp
 		obs_scene_tree_view/stv_item_model.cpp
 		obs_scene_tree_view/stv_item_view.cpp
 )
