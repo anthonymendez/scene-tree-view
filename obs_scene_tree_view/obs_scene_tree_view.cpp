@@ -155,6 +155,9 @@ ObsSceneTreeView::ObsSceneTreeView(QMainWindow *main_window)
                      });
   }
 
+  QObject::connect(stv_dock_.stvTree, &StvItemView::deletePressed, this,
+                   &ObsSceneTreeView::on_stvRemove_released);
+
   QObject::connect(stv_dock_.stvTree->verticalScrollBar(),
                    &QScrollBar::valueChanged, this, [this](int value) {
                      if (!is_loading_) {
