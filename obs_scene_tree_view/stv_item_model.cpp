@@ -14,11 +14,11 @@
 
 namespace scene_tree_view {
 
-StvFolderItem::StvFolderItem(const QString& text) : QStandardItem(text) {
+StvFolderItem::StvFolderItem(const QString &text) : QStandardItem(text) {
   setDropEnabled(true);
 
-  QMainWindow* main_window =
-      reinterpret_cast<QMainWindow*>(obs_frontend_get_main_window());
+  QMainWindow *main_window =
+      reinterpret_cast<QMainWindow *>(obs_frontend_get_main_window());
   QIcon icon = config_get_bool(obs_frontend_get_user_config(), "SceneTreeView",
                                "ShowFolderIcons")
                    ? main_window->property("groupIcon").value<QIcon>()
@@ -28,14 +28,14 @@ StvFolderItem::StvFolderItem(const QString& text) : QStandardItem(text) {
 
 int StvFolderItem::type() const { return StvItemModel::kFolder; }
 
-StvSceneItem::StvSceneItem(const QString& text, obs_weak_source_t* weak)
+StvSceneItem::StvSceneItem(const QString &text, obs_weak_source_t *weak)
     : QStandardItem(text) {
   setDropEnabled(false);
   setData(QVariant::fromValue(ObsWeakSourcePtr({weak})),
           StvItemModel::kObsScene);
 
-  QMainWindow* main_window =
-      reinterpret_cast<QMainWindow*>(obs_frontend_get_main_window());
+  QMainWindow *main_window =
+      reinterpret_cast<QMainWindow *>(obs_frontend_get_main_window());
   QIcon icon = config_get_bool(obs_frontend_get_user_config(), "SceneTreeView",
                                "ShowSceneIcons")
                    ? main_window->property("sceneIcon").value<QIcon>()
@@ -49,7 +49,7 @@ StvItemModel::StvItemModel() {}
 
 StvItemModel::~StvItemModel() {
   // Remove scene refs.
-  for (auto& scene : scenes_in_tree_) {
+  for (auto &scene : scenes_in_tree_) {
     obs_weak_source_release(scene.first);
   }
   scenes_in_tree_.clear();
@@ -59,27 +59,27 @@ QStringList StvItemModel::mimeTypes() const {
   return QStringList(kMimeType.data());
 }
 
-QMimeData* StvItemModel::mimeData(const QModelIndexList& indexes) const {
-  QMimeData* mime = new QMimeData();
+QMimeData *StvItemModel::mimeData(const QModelIndexList &indexes) const {
+  QMimeData *mime = new QMimeData();
 
   const int num_indexes = indexes.size();
 
   QByteArray mime_dat;
   mime_dat.reserve(num_indexes * sizeof(MimeItemData) + sizeof(int));
-  mime_dat.append((const char*)&num_indexes, sizeof(int));
+  mime_dat.append((const char *)&num_indexes, sizeof(int));
 
-  for (const auto& index : indexes) {
+  for (const auto &index : indexes) {
     MimeItemData item_mime_dat;
-    const QStandardItem* item = itemFromIndex(index);
+    const QStandardItem *item = itemFromIndex(index);
 
     assert(item->type() == kFolder || item->type() == kScene);
     item_mime_dat.type = (QItemType)item->type();
     item_mime_dat.data =
         item_mime_dat.type == QItemType::kFolder
-            ? (void*)item
-            : (void*)item->data(kObsScene).value<ObsWeakSourcePtr>().ptr;
+            ? (void *)item
+            : (void *)item->data(kObsScene).value<ObsWeakSourcePtr>().ptr;
 
-    mime_dat.append((const char*)&item_mime_dat, sizeof(MimeItemData));
+    mime_dat.append((const char *)&item_mime_dat, sizeof(MimeItemData));
   }
 
   mime->setData(kMimeType.data(), mime_dat);
@@ -87,20 +87,21 @@ QMimeData* StvItemModel::mimeData(const QModelIndexList& indexes) const {
   return mime;
 }
 
-bool StvItemModel::dropMimeData(const QMimeData* data, Qt::DropAction action,
+bool StvItemModel::dropMimeData(const QMimeData *data, Qt::DropAction action,
                                 int row, int column,
-                                const QModelIndex& parent) {
+                                const QModelIndex &parent) {
   Q_UNUSED(action);
   Q_UNUSED(column);
 
-  QStandardItem* parent_item = itemFromIndex(parent);
+  QStandardItem *parent_item = itemFromIndex(parent);
   if (!parent_item) {
     parent_item = invisibleRootItem();
   } else if (parent_item->type() == QItemType::kScene) {
     return false;
   }
 
-  if (parent_item->data(kSortMode).toInt() != static_cast<int>(SortMode::kUser)) {
+  if (parent_item->data(kSortMode).toInt() !=
+      static_cast<int>(SortMode::kUser)) {
     parent_item->setData(static_cast<int>(SortMode::kUser), kSortMode);
   }
 
@@ -111,19 +112,19 @@ bool StvItemModel::dropMimeData(const QMimeData* data, Qt::DropAction action,
   QByteArray qdat = data->data(kMimeType.data());
   assert(qdat.size() >= (int)sizeof(int));
 
-  const char* dat = qdat.constData();
+  const char *dat = qdat.constData();
 
-  const int num_indexes = *(int*)dat;
+  const int num_indexes = *(int *)dat;
   dat += sizeof(int);
 
   for (int i = 0; i < num_indexes; ++i) {
     // Find item and move it.
-    const MimeItemData* item_data = (const MimeItemData*)dat;
+    const MimeItemData *item_data = (const MimeItemData *)dat;
     assert(item_data->type == kFolder || item_data->type == kScene);
     if (item_data->type == kScene) {
-      MoveSceneItem((obs_weak_source_t*)item_data->data, row + i, parent_item);
+      MoveSceneItem((obs_weak_source_t *)item_data->data, row + i, parent_item);
     } else {
-      MoveSceneFolder((QStandardItem*)item_data->data, row + i, parent_item);
+      MoveSceneFolder((QStandardItem *)item_data->data, row + i, parent_item);
     }
 
     dat += sizeof(MimeItemData);
@@ -132,14 +133,14 @@ bool StvItemModel::dropMimeData(const QMimeData* data, Qt::DropAction action,
   return true;
 }
 
-void StvItemModel::UpdateTree(obs_frontend_source_list& scene_list,
-                              const QModelIndex& selected_index) {
+void StvItemModel::UpdateTree(obs_frontend_source_list &scene_list,
+                              const QModelIndex &selected_index) {
   UpdateSceneSize();
 
   source_map_t new_scene_tree;
 
   for (size_t i = 0; i < scene_list.sources.num; i++) {
-    obs_source_t* source = scene_list.sources.array[i];
+    obs_source_t *source = scene_list.sources.array[i];
     assert(obs_scene_from_source(source) != nullptr);
 
     if (!IsManagedScene(source)) {
@@ -149,7 +150,7 @@ void StvItemModel::UpdateTree(obs_frontend_source_list& scene_list,
     source_map_t::iterator scene_it;
 
     // Check if scene already in tree.
-    obs_weak_source_t* weak = obs_source_get_weak_source(source);
+    obs_weak_source_t *weak = obs_source_get_weak_source(source);
 
     scene_it = scenes_in_tree_.find(weak);
     if (scene_it != scenes_in_tree_.end()) {
@@ -161,15 +162,15 @@ void StvItemModel::UpdateTree(obs_frontend_source_list& scene_list,
 
       obs_weak_source_release(weak);
     } else {
-      QStandardItem* pending_item = FindPendingSceneItem(
+      QStandardItem *pending_item = FindPendingSceneItem(
           invisibleRootItem(), obs_source_get_name(source));
       if (pending_item) {
         pending_item->setData(QVariant::fromValue(ObsWeakSourcePtr({weak})),
                               kObsScene);
         scene_it = new_scene_tree.emplace(weak, pending_item).first;
 
-        QMainWindow* main_window =
-            reinterpret_cast<QMainWindow*>(obs_frontend_get_main_window());
+        QMainWindow *main_window =
+            reinterpret_cast<QMainWindow *>(obs_frontend_get_main_window());
         QIcon icon = config_get_bool(obs_frontend_get_user_config(),
                                      "SceneTreeView", "ShowSceneIcons")
                          ? main_window->property("sceneIcon").value<QIcon>()
@@ -183,13 +184,13 @@ void StvItemModel::UpdateTree(obs_frontend_source_list& scene_list,
     weak = nullptr;
 
     // Check that scene contains tree data.
-    obs_data_t* scene_dat =
+    obs_data_t *scene_dat =
         obs_source_get_private_settings(OBSGetStrongRef(scene_it->first).Get());
 
     if (!scene_it->second) {
       // Scene not yet in tree, add it at the correct position.
-      QStandardItem* selected = itemFromIndex(selected_index);
-      QStandardItem* parent;
+      QStandardItem *selected = itemFromIndex(selected_index);
+      QStandardItem *parent;
       if (selected) {
         assert(selected->type() == QItemType::kScene ||
                selected->type() == QItemType::kFolder);
@@ -205,7 +206,7 @@ void StvItemModel::UpdateTree(obs_frontend_source_list& scene_list,
       }
 
       // Add new item to scene.
-      StvSceneItem* pItem =
+      StvSceneItem *pItem =
           new StvSceneItem(obs_source_get_name(source), scene_it->first);
 
       const auto row = parent == selected ? 0 : selected->row();
@@ -223,7 +224,7 @@ void StvItemModel::UpdateTree(obs_frontend_source_list& scene_list,
   }
 
   // Erase all remaining elements in scenes_in_tree_.
-  for (const auto& scene : scenes_in_tree_) {
+  for (const auto &scene : scenes_in_tree_) {
     assert(scene.second);
 
     const int row = scene.second->row();
@@ -237,12 +238,12 @@ void StvItemModel::UpdateTree(obs_frontend_source_list& scene_list,
   SortAllFolders(invisibleRootItem());
 }
 
-bool StvItemModel::CheckFolderNameUniqueness(const QString& name,
-                                             QStandardItem* parent,
-                                             QStandardItem* item_to_skip) {
+bool StvItemModel::CheckFolderNameUniqueness(const QString &name,
+                                             QStandardItem *parent,
+                                             QStandardItem *item_to_skip) {
   const int row_count = parent->rowCount();
   for (int i = 0; i < row_count; ++i) {
-    QStandardItem* item = parent->child(i);
+    QStandardItem *item = parent->child(i);
     if (item == item_to_skip) {
       continue;
     }
@@ -255,9 +256,9 @@ bool StvItemModel::CheckFolderNameUniqueness(const QString& name,
   return true;
 }
 
-void StvItemModel::SetSelectedScene(QStandardItem* item, bool set_preview_scene,
+void StvItemModel::SetSelectedScene(QStandardItem *item, bool set_preview_scene,
                                     bool force_set_scene) {
-  obs_weak_source_t* weak =
+  obs_weak_source_t *weak =
       item->data(QDataRole::kObsScene).value<ObsWeakSourcePtr>().ptr;
   OBSSourceAutoRelease source = OBSGetStrongRef(weak);
   if (source) {
@@ -275,7 +276,7 @@ void StvItemModel::SetSelectedScene(QStandardItem* item, bool set_preview_scene,
   }
 }
 
-QStandardItem* StvItemModel::GetCurrentSceneItem() {
+QStandardItem *StvItemModel::GetCurrentSceneItem() {
   // Change source to the selected one.
   OBSSourceAutoRelease source = GetCurrentScene();
   OBSWeakSource weak = OBSGetWeakRef(source);
@@ -296,9 +297,9 @@ OBSSourceAutoRelease StvItemModel::GetCurrentScene() {
              : obs_frontend_get_current_scene();
 }
 
-void StvItemModel::SaveSceneTree(obs_data_t* root_folder_data,
-                                 const char* scene_collection,
-                                 QTreeView* view) {
+void StvItemModel::SaveSceneTree(obs_data_t *root_folder_data,
+                                 const char *scene_collection,
+                                 QTreeView *view) {
   OBSDataArrayAutoRelease folder_data =
       CreateFolderArray(*invisibleRootItem(), view);
   obs_data_set_array(root_folder_data, scene_collection, folder_data);
@@ -308,37 +309,32 @@ void StvItemModel::SaveSceneTree(obs_data_t* root_folder_data,
   obs_data_set_int(root_folder_data, root_sort_key.c_str(), root_sort_mode);
 }
 
-void StvItemModel::LoadSceneTree(obs_data_t* root_folder_data,
-                                 const char* scene_collection,
-                                 QTreeView* view) {
+void StvItemModel::LoadSceneTree(obs_data_t *root_folder_data,
+                                 const char *scene_collection) {
   UpdateSceneSize();
 
-  QStandardItem* root_item = invisibleRootItem();
+  QStandardItem *root_item = invisibleRootItem();
 
   // Erase previous data.
   CleanupSceneTree();
 
   std::string root_sort_key = std::string(scene_collection) + "_sort_mode";
-  int root_sort_mode = obs_data_get_int(root_folder_data, root_sort_key.c_str());
+  int root_sort_mode =
+      obs_data_get_int(root_folder_data, root_sort_key.c_str());
   root_item->setData(root_sort_mode, kSortMode);
 
   // Add loaded data.
   OBSDataArrayAutoRelease folder_array =
       obs_data_get_array(root_folder_data, scene_collection);
   if (folder_array) {
-    std::list<StvFolderItem*> expandable_folders;
-    LoadFolderArray(folder_array, *root_item, expandable_folders);
-
-    for (auto& item : expandable_folders) {
-      view->setExpanded(item->index(), true);
-    }
+    LoadFolderArray(folder_array, *root_item);
   }
 
   if (root_sort_mode == static_cast<int>(SortMode::kAlphaAsc) ||
       root_sort_mode == static_cast<int>(SortMode::kAlphaDesc)) {
     QVariantList user_list;
     for (int j = 0; j < root_item->rowCount(); ++j) {
-      QStandardItem* child = root_item->child(j);
+      QStandardItem *child = root_item->child(j);
       QVariantMap map;
       map["name"] = child->text();
       map["type"] = child->type();
@@ -352,18 +348,18 @@ void StvItemModel::LoadSceneTree(obs_data_t* root_folder_data,
 
 void StvItemModel::CleanupSceneTree() {
   // Remove scene refs.
-  for (auto& scene : scenes_in_tree_) {
+  for (auto &scene : scenes_in_tree_) {
     obs_weak_source_release(scene.first);
   }
 
   scenes_in_tree_.clear();
 
-  QStandardItem* root_item = invisibleRootItem();
+  QStandardItem *root_item = invisibleRootItem();
   root_item->removeRows(0, root_item->rowCount());
 }
 
-QStandardItem* StvItemModel::GetParentOrRoot(const QModelIndex& index) {
-  QStandardItem* selected = itemFromIndex(parent(index));
+QStandardItem *StvItemModel::GetParentOrRoot(const QModelIndex &index) {
+  QStandardItem *selected = itemFromIndex(parent(index));
   if (!selected) {
     selected = invisibleRootItem();
   }
@@ -371,8 +367,8 @@ QStandardItem* StvItemModel::GetParentOrRoot(const QModelIndex& index) {
   return selected;
 }
 
-QString StvItemModel::CreateUniqueFolderName(QStandardItem* folder_item,
-                                             QStandardItem* parent) {
+QString StvItemModel::CreateUniqueFolderName(QStandardItem *folder_item,
+                                             QStandardItem *parent) {
   // Check that name is unique.
   QString folder_name = folder_item->text();
   if (!CheckFolderNameUniqueness(folder_name, parent, folder_item)) {
@@ -403,8 +399,8 @@ void StvItemModel::SetIconVisibility(bool enable_visibility,
 }
 
 void StvItemModel::SetSceneIconVisibility(bool enable_visibility) {
-  QMainWindow* main_window =
-      reinterpret_cast<QMainWindow*>(obs_frontend_get_main_window());
+  QMainWindow *main_window =
+      reinterpret_cast<QMainWindow *>(obs_frontend_get_main_window());
   QIcon icon = enable_visibility
                    ? main_window->property("sceneIcon").value<QIcon>()
                    : QIcon();
@@ -413,8 +409,8 @@ void StvItemModel::SetSceneIconVisibility(bool enable_visibility) {
 }
 
 void StvItemModel::SetFolderIconVisibility(bool enable_visibility) {
-  QMainWindow* main_window =
-      reinterpret_cast<QMainWindow*>(obs_frontend_get_main_window());
+  QMainWindow *main_window =
+      reinterpret_cast<QMainWindow *>(obs_frontend_get_main_window());
   QIcon icon = enable_visibility
                    ? main_window->property("groupIcon").value<QIcon>()
                    : QIcon();
@@ -429,32 +425,33 @@ void StvItemModel::UpdateSceneSize() {
       config_get_int(obs_frontend_get_profile_config(), "Video", "BaseCY");
 }
 
-bool StvItemModel::IsManagedScene(obs_scene_t* scene) const {
+bool StvItemModel::IsManagedScene(obs_scene_t *scene) const {
   OBSSource source = obs_scene_get_source(scene);
   return IsManagedScene(source);
 }
 
-bool StvItemModel::IsManagedScene(obs_source_t* scene_source) const {
+bool StvItemModel::IsManagedScene(obs_source_t *scene_source) const {
   OBSDataAutoRelease settings = obs_source_get_settings(scene_source);
   return obs_data_get_bool(settings, "custom_size") == false;
 }
 
-bool StvItemModel::MoveIndexByOne(const QModelIndex& index, int delta) {
+bool StvItemModel::MoveIndexByOne(const QModelIndex &index, int delta) {
   if (!index.isValid()) {
     return false;
   }
 
-  QStandardItem* item = itemFromIndex(index);
+  QStandardItem *item = itemFromIndex(index);
   if (!item) {
     return false;
   }
 
-  QStandardItem* parent_item = itemFromIndex(index.parent());
+  QStandardItem *parent_item = itemFromIndex(index.parent());
   if (!parent_item) {
     parent_item = invisibleRootItem();
   }
 
-  if (parent_item->data(kSortMode).toInt() != static_cast<int>(SortMode::kUser)) {
+  if (parent_item->data(kSortMode).toInt() !=
+      static_cast<int>(SortMode::kUser)) {
     parent_item->setData(static_cast<int>(SortMode::kUser), kSortMode);
   }
 
@@ -472,7 +469,7 @@ bool StvItemModel::MoveIndexByOne(const QModelIndex& index, int delta) {
   }
 
   if (item->type() == kScene) {
-    obs_weak_source_t* weak =
+    obs_weak_source_t *weak =
         item->data(kObsScene).value<ObsWeakSourcePtr>().ptr;
     MoveSceneItem(weak, insertPos, parent_item);
   } else if (item->type() == kFolder) {
@@ -492,8 +489,8 @@ bool StvItemModel::MoveIndexByOne(const QModelIndex& index, int delta) {
   return true;
 }
 
-void StvItemModel::MoveSceneItem(obs_weak_source_t* source, int row,
-                                 QStandardItem* parent_item) {
+void StvItemModel::MoveSceneItem(obs_weak_source_t *source, int row,
+                                 QStandardItem *parent_item) {
   if (const auto scene_it = scenes_in_tree_.find(source);
       scene_it != scenes_in_tree_.end()) {
     assert(scene_it->second->type() == kScene);
@@ -501,7 +498,7 @@ void StvItemModel::MoveSceneItem(obs_weak_source_t* source, int row,
     blog(LOG_INFO, "[%s] Moving %s", obs_module_name(),
          scene_it->second->text().toStdString().c_str());
 
-    StvSceneItem* pItem =
+    StvSceneItem *pItem =
         new StvSceneItem(scene_it->second->text(), scene_it->first);
     parent_item->insertRow(row, pItem);
     AddChildToUserOrder(parent_item, pItem);
@@ -515,8 +512,8 @@ void StvItemModel::MoveSceneItem(obs_weak_source_t* source, int row,
   }
 }
 
-void StvItemModel::MoveSceneFolder(QStandardItem* item, int row,
-                                   QStandardItem* parent_item) {
+void StvItemModel::MoveSceneFolder(QStandardItem *item, int row,
+                                   QStandardItem *parent_item) {
   assert(item->type() == kFolder);
   blog(LOG_INFO, "[%s] Moving %s", obs_module_name(),
        item->text().toStdString().c_str());
@@ -524,7 +521,7 @@ void StvItemModel::MoveSceneFolder(QStandardItem* item, int row,
   // Check that name is unique.
   QString new_name = CreateUniqueFolderName(item, parent_item);
 
-  StvFolderItem* new_item = new StvFolderItem(new_name);
+  StvFolderItem *new_item = new StvFolderItem(new_name);
   new_item->setData(item->data(kSortMode), kSortMode);
   new_item->setData(item->data(kUserOrder), kUserOrder);
 
@@ -532,36 +529,36 @@ void StvItemModel::MoveSceneFolder(QStandardItem* item, int row,
   AddChildToUserOrder(parent_item, new_item);
 
   for (int sub_row = 0; sub_row < item->rowCount(); ++sub_row) {
-    QStandardItem* sub_item = item->child(sub_row);
+    QStandardItem *sub_item = item->child(sub_row);
 
     assert(sub_item->type() == kFolder || sub_item->type() == kScene);
 
     if (sub_item->type() == kFolder) {
       MoveSceneFolder(sub_item, sub_row, new_item);
     } else {
-      obs_weak_source_t* weak =
+      obs_weak_source_t *weak =
           sub_item->data(kObsScene).value<ObsWeakSourcePtr>().ptr;
       MoveSceneItem(weak, sub_row, new_item);
     }
   }
 }
 
-OBSDataAutoRelease StvItemModel::SerializeItem(QStandardItem& item,
-                                               QTreeView* view) {
+OBSDataAutoRelease StvItemModel::SerializeItem(QStandardItem &item,
+                                               QTreeView *view) {
   OBSDataAutoRelease item_data = obs_data_create();
   if (item.type() == kFolder) {
     OBSDataArrayAutoRelease sub_folder_data = CreateFolderArray(item, view);
     obs_data_set_array(item_data, kSceneTreeConfigFolderData.data(),
                        sub_folder_data);
     obs_data_set_bool(item_data, kSceneTreeConfigFolderExpanded.data(),
-                      view->isExpanded(item.index()));
+                      item.data(kExpanded).toBool());
     obs_data_set_string(item_data, kSceneTreeConfigItemNameData.data(),
                         item.text().toStdString().c_str());
 
     int sort_mode = item.data(kSortMode).toInt();
     obs_data_set_int(item_data, "sort_mode", sort_mode);
   } else {
-    obs_weak_source_t* weak =
+    obs_weak_source_t *weak =
         item.data(QDataRole::kObsScene).value<ObsWeakSourcePtr>().ptr;
     if (!weak) {
       // Placeholder scene not yet resolved — serialize using stored text name
@@ -577,9 +574,9 @@ OBSDataAutoRelease StvItemModel::SerializeItem(QStandardItem& item,
   return item_data;
 }
 
-obs_data_array_t* StvItemModel::CreateFolderArray(QStandardItem& folder,
-                                                  QTreeView* view) {
-  obs_data_array_t* folder_data = obs_data_array_create();
+obs_data_array_t *StvItemModel::CreateFolderArray(QStandardItem &folder,
+                                                  QTreeView *view) {
+  obs_data_array_t *folder_data = obs_data_array_create();
 
   int sort_mode = folder.data(kSortMode).toInt();
   QVariant var_user_order = folder.data(kUserOrder);
@@ -588,18 +585,18 @@ obs_data_array_t* StvItemModel::CreateFolderArray(QStandardItem& folder,
        sort_mode == static_cast<int>(SortMode::kAlphaDesc)) &&
       var_user_order.isValid() && !var_user_order.isNull()) {
     QVariantList user_list = var_user_order.toList();
-    QList<QStandardItem*> children;
+    QList<QStandardItem *> children;
     for (int i = 0; i < folder.rowCount(); ++i) {
       children.append(folder.child(i));
     }
 
-    for (const QVariant& v : user_list) {
+    for (const QVariant &v : user_list) {
       QVariantMap map = v.toMap();
       QString name = map.value("name").toString();
       int type = map.value("type").toInt();
 
       for (int i = 0; i < children.size(); ++i) {
-        QStandardItem* item = children.at(i);
+        QStandardItem *item = children.at(i);
         if (item && item->text() == name && item->type() == type) {
           OBSDataAutoRelease item_data = SerializeItem(*item, view);
           obs_data_array_push_back(folder_data, item_data);
@@ -609,13 +606,13 @@ obs_data_array_t* StvItemModel::CreateFolderArray(QStandardItem& folder,
       }
     }
 
-    for (QStandardItem* item : children) {
+    for (QStandardItem *item : children) {
       OBSDataAutoRelease item_data = SerializeItem(*item, view);
       obs_data_array_push_back(folder_data, item_data);
     }
   } else {
     for (int i = 0; i < folder.rowCount(); ++i) {
-      QStandardItem* item = folder.child(i);
+      QStandardItem *item = folder.child(i);
       OBSDataAutoRelease item_data = SerializeItem(*item, view);
       obs_data_array_push_back(folder_data, item_data);
     }
@@ -624,52 +621,53 @@ obs_data_array_t* StvItemModel::CreateFolderArray(QStandardItem& folder,
   return folder_data;
 }
 
-void StvItemModel::LoadFolderArray(
-    obs_data_array_t* folder_data, QStandardItem& folder,
-    std::list<StvFolderItem*>& expandable_folders) {
+void StvItemModel::LoadFolderArray(obs_data_array_t *folder_data,
+                                   QStandardItem &folder) {
   const size_t item_count = obs_data_array_count(folder_data);
   for (size_t i = 0; i < item_count; ++i) {
     OBSDataAutoRelease item_data = obs_data_array_item(folder_data, i);
 
-    const char* item_name =
+    const char *item_name =
         obs_data_get_string(item_data, kSceneTreeConfigItemNameData.data());
     OBSDataArrayAutoRelease sub_folder_data =
         obs_data_get_array(item_data, kSceneTreeConfigFolderData.data());
 
-    // Check if this is folder or scene item (only folders have sub_folder_data).
+    // Check if this is folder or scene item (only folders have
+    // sub_folder_data).
     if (!sub_folder_data) {
       OBSSceneAutoRelease scene = obs_get_scene_by_name(item_name);
-      obs_weak_source_t* weak = nullptr;
+      obs_weak_source_t *weak = nullptr;
       if (scene && IsManagedScene(scene)) {
         OBSSource source = obs_scene_get_source(scene);
         weak = obs_source_get_weak_source(source);
 
         // Skip if scene already in treeview.
-        // (see issue https://github.com/DigitOtter/obs_scene_tree_view/issues/19)
+        // (see issue
+        // https://github.com/DigitOtter/obs_scene_tree_view/issues/19)
         if (scenes_in_tree_.find(weak) != scenes_in_tree_.end()) {
           obs_weak_source_release(weak);
           continue;
         }
       }
 
-      StvSceneItem* new_scene_item = new StvSceneItem(item_name, weak);
+      StvSceneItem *new_scene_item = new StvSceneItem(item_name, weak);
       folder.appendRow(new_scene_item);
 
       if (weak) {
         scenes_in_tree_.emplace(weak, new_scene_item);
       }
     } else {
-      StvFolderItem* new_folder_item = new StvFolderItem(item_name);
+      StvFolderItem *new_folder_item = new StvFolderItem(item_name);
       int sort_mode = obs_data_get_int(item_data, "sort_mode");
       new_folder_item->setData(sort_mode, kSortMode);
 
-      LoadFolderArray(sub_folder_data, *new_folder_item, expandable_folders);
+      LoadFolderArray(sub_folder_data, *new_folder_item);
 
       if (sort_mode == static_cast<int>(SortMode::kAlphaAsc) ||
           sort_mode == static_cast<int>(SortMode::kAlphaDesc)) {
         QVariantList user_list;
         for (int j = 0; j < new_folder_item->rowCount(); ++j) {
-          QStandardItem* child = new_folder_item->child(j);
+          QStandardItem *child = new_folder_item->child(j);
           QVariantMap map;
           map["name"] = child->text();
           map["type"] = child->type();
@@ -680,25 +678,22 @@ void StvItemModel::LoadFolderArray(
 
       folder.appendRow(new_folder_item);
 
-      // Check if folder should be expanded.
-      // The folders are expanded after the tree is completely created to
-      // prevent new inserts from closing the folders again.
-      if (obs_data_get_bool(item_data,
-                            kSceneTreeConfigFolderExpanded.data())) {
-        expandable_folders.push_back(new_folder_item);
-      }
+      // Read and store expansion state in model data
+      bool expanded =
+          obs_data_get_bool(item_data, kSceneTreeConfigFolderExpanded.data());
+      new_folder_item->setData(expanded, kExpanded);
     }
   }
 }
 
-void StvItemModel::SetIcon(const QIcon& icon, QItemType item_type,
-                           QStandardItem* item) {
+void StvItemModel::SetIcon(const QIcon &icon, QItemType item_type,
+                           QStandardItem *item) {
   if (!item) {
     return;
   }
 
   for (int i = 0; i < item->rowCount(); ++i) {
-    QStandardItem* child = item->child(i);
+    QStandardItem *child = item->child(i);
     if (child->type() == item_type) {
       child->setIcon(icon);
     }
@@ -709,7 +704,7 @@ void StvItemModel::SetIcon(const QIcon& icon, QItemType item_type,
   }
 }
 
-void StvItemModel::SortFolder(QStandardItem* folder) {
+void StvItemModel::SortFolder(QStandardItem *folder) {
   if (!folder) {
     return;
   }
@@ -724,7 +719,7 @@ void StvItemModel::SortFolder(QStandardItem* folder) {
   }
 }
 
-void StvItemModel::SortAllFolders(QStandardItem* parent) {
+void StvItemModel::SortAllFolders(QStandardItem *parent) {
   if (!parent) {
     return;
   }
@@ -732,14 +727,14 @@ void StvItemModel::SortAllFolders(QStandardItem* parent) {
   SortFolder(parent);
 
   for (int i = 0; i < parent->rowCount(); ++i) {
-    QStandardItem* child = parent->child(i);
+    QStandardItem *child = parent->child(i);
     if (child && child->type() == kFolder) {
       SortAllFolders(child);
     }
   }
 }
 
-void StvItemModel::RestoreUserOrder(QStandardItem* folder) {
+void StvItemModel::RestoreUserOrder(QStandardItem *folder) {
   if (!folder) {
     return;
   }
@@ -754,18 +749,18 @@ void StvItemModel::RestoreUserOrder(QStandardItem* folder) {
     return;
   }
 
-  QList<QStandardItem*> taken;
+  QList<QStandardItem *> taken;
   while (folder->rowCount() > 0) {
     taken.append(folder->takeRow(0).at(0));
   }
 
-  for (const QVariant& v : list) {
+  for (const QVariant &v : list) {
     QVariantMap map = v.toMap();
     QString name = map.value("name").toString();
     int type = map.value("type").toInt();
 
     for (int i = 0; i < taken.size(); ++i) {
-      QStandardItem* item = taken.at(i);
+      QStandardItem *item = taken.at(i);
       if (item && item->text() == name && item->type() == type) {
         folder->appendRow(item);
         taken.removeAt(i);
@@ -774,13 +769,13 @@ void StvItemModel::RestoreUserOrder(QStandardItem* folder) {
     }
   }
 
-  for (QStandardItem* item : taken) {
+  for (QStandardItem *item : taken) {
     folder->appendRow(item);
   }
 }
 
-void StvItemModel::AddChildToUserOrder(QStandardItem* parent,
-                                      QStandardItem* child) {
+void StvItemModel::AddChildToUserOrder(QStandardItem *parent,
+                                       QStandardItem *child) {
   if (!parent || !child) {
     return;
   }
@@ -800,26 +795,26 @@ void StvItemModel::AddChildToUserOrder(QStandardItem* parent,
   }
 }
 
-QStandardItem* StvItemModel::FindPendingSceneItem(QStandardItem* parent,
-                                                  const QString& name) {
+QStandardItem *StvItemModel::FindPendingSceneItem(QStandardItem *parent,
+                                                  const QString &name) {
   if (!parent) {
     return nullptr;
   }
 
   for (int i = 0; i < parent->rowCount(); ++i) {
-    QStandardItem* child = parent->child(i);
+    QStandardItem *child = parent->child(i);
     if (!child) {
       continue;
     }
 
     if (child->type() == kScene) {
-      obs_weak_source_t* weak =
+      obs_weak_source_t *weak =
           child->data(QDataRole::kObsScene).value<ObsWeakSourcePtr>().ptr;
       if (weak == nullptr && child->text() == name) {
         return child;
       }
     } else if (child->type() == kFolder) {
-      QStandardItem* found = FindPendingSceneItem(child, name);
+      QStandardItem *found = FindPendingSceneItem(child, name);
       if (found) {
         return found;
       }
@@ -829,4 +824,4 @@ QStandardItem* StvItemModel::FindPendingSceneItem(QStandardItem* parent,
   return nullptr;
 }
 
-}  // namespace scene_tree_view
+} // namespace scene_tree_view

@@ -7,6 +7,7 @@
 #include <QAction>
 #include <QActionGroup>
 #include <QLineEdit>
+#include <QScrollBar>
 #include <QTimer>
 #include <QtWidgets/QComboBox>
 #include <QtWidgets/QDialog>
@@ -221,6 +222,51 @@ ObsSceneTreeView::ObsSceneTreeView(QMainWindow *main_window)
                      });
   }
 
+  QObject::connect(stv_dock_.stvTree->verticalScrollBar(),
+                   &QScrollBar::valueChanged, this, [this](int value) {
+                     if (!is_loading_) {
+                       last_v_scroll_ = value;
+                     }
+                   });
+  QObject::connect(stv_dock_.stvTree->horizontalScrollBar(),
+                   &QScrollBar::valueChanged, this, [this](int value) {
+                     if (!is_loading_) {
+                       last_h_scroll_ = value;
+                     }
+                   });
+  QObject::connect(stv_dock_.stvTree, &QTreeView::expanded, this,
+                   [this](const QModelIndex &index) {
+                     QStandardItem *item =
+                         scene_tree_items_.itemFromIndex(index);
+                     if (item) {
+                       blog(LOG_INFO, "[%s] EVENT: expanded item '%s', type %d",
+                            obs_module_name(),
+                            item->text().toStdString().c_str(), item->type());
+                       if (item->type() == StvItemModel::kFolder) {
+                         item->setData(true, StvItemModel::kExpanded);
+                       }
+                     }
+                     if (!is_loading_ && scene_collection_name_) {
+                       SaveSceneTree(scene_collection_name_);
+                     }
+                   });
+  QObject::connect(
+      stv_dock_.stvTree, &QTreeView::collapsed, this,
+      [this](const QModelIndex &index) {
+        QStandardItem *item = scene_tree_items_.itemFromIndex(index);
+        if (item) {
+          blog(LOG_INFO, "[%s] EVENT: collapsed item '%s', type %d",
+               obs_module_name(), item->text().toStdString().c_str(),
+               item->type());
+          if (item->type() == StvItemModel::kFolder) {
+            item->setData(false, StvItemModel::kExpanded);
+          }
+        }
+        if (!is_loading_ && scene_collection_name_) {
+          SaveSceneTree(scene_collection_name_);
+        }
+      });
+
   const bool show_icons =
       config_get_bool(global_config, "BasicWindow", "ShowListboxToolbars");
   on_toggleListboxToolbars(show_icons);
@@ -280,6 +326,11 @@ void ObsSceneTreeView::SaveSceneTree(const char *scene_collection) {
   scene_tree_items_.SaveSceneTree(stv_data, scene_collection,
                                   stv_dock_.stvTree);
 
+  std::string v_scroll_key = std::string(scene_collection) + "_v_scroll";
+  std::string h_scroll_key = std::string(scene_collection) + "_h_scroll";
+  obs_data_set_int(stv_data, v_scroll_key.c_str(), last_v_scroll_);
+  obs_data_set_int(stv_data, h_scroll_key.c_str(), last_h_scroll_);
+
   if (!obs_data_save_json(stv_data, stv_config_file_path)) {
     blog(LOG_WARNING, "[%s] Failed to save scene tree in '%s'",
          obs_module_name(), stv_config_file_path.Get());
@@ -291,15 +342,32 @@ void ObsSceneTreeView::LoadSceneTree(const char *scene_collection) {
   blog(LOG_INFO, "[%s] LoadSceneTree: collection='%s'", obs_module_name(),
        scene_collection);
 
+  is_loading_ = true;
+
   BPtr<char> stv_config_file_path =
       obs_module_config_path(kSceneTreeConfigFile.data());
 
   OBSDataAutoRelease stv_data =
       obs_data_create_from_json_file(stv_config_file_path);
   scene_tree_items_.blockSignals(true);
-  scene_tree_items_.LoadSceneTree(stv_data, scene_collection,
-                                  stv_dock_.stvTree);
+  scene_tree_items_.LoadSceneTree(stv_data, scene_collection);
   scene_tree_items_.blockSignals(false);
+  scene_tree_items_.layoutChanged();
+
+  // Load and restore scroll positions
+  std::string v_scroll_key = std::string(scene_collection) + "_v_scroll";
+  std::string h_scroll_key = std::string(scene_collection) + "_h_scroll";
+  last_v_scroll_ = (int)obs_data_get_int(stv_data, v_scroll_key.c_str());
+  last_h_scroll_ = (int)obs_data_get_int(stv_data, h_scroll_key.c_str());
+
+  QTimer::singleShot(100, this, [this]() {
+    bool was_loading = is_loading_;
+    is_loading_ = true;
+    RestoreExpansionStates();
+    stv_dock_.stvTree->verticalScrollBar()->setValue(last_v_scroll_);
+    stv_dock_.stvTree->horizontalScrollBar()->setValue(last_h_scroll_);
+    is_loading_ = was_loading;
+  });
 
   int item_count = scene_tree_items_.invisibleRootItem()->rowCount();
   bool pending = HasUnassociatedScenes();
@@ -322,8 +390,14 @@ void ObsSceneTreeView::UpdateTreeView() {
   scene_tree_items_.blockSignals(true);
   scene_tree_items_.UpdateTree(scene_list, stv_dock_.stvTree->currentIndex());
   scene_tree_items_.blockSignals(false);
+  scene_tree_items_.layoutChanged();
 
   obs_frontend_source_list_free(&scene_list);
+
+  bool was_loading = is_loading_;
+  is_loading_ = true;
+  RestoreExpansionStates();
+  is_loading_ = was_loading;
 
   int item_count = scene_tree_items_.invisibleRootItem()->rowCount();
   bool pending = HasUnassociatedScenes();
@@ -1100,6 +1174,13 @@ void ObsSceneTreeView::HideLoadingScreen() {
   loading_label_->setVisible(false);
   loading_label_->setParent(stv_dock_.stvTree);
   stv_dock_.stvTree->setVisible(true);
+
+  QTimer::singleShot(50, this, [this]() {
+    bool was_loading = is_loading_;
+    is_loading_ = true;
+    RestoreExpansionStates();
+    is_loading_ = was_loading;
+  });
 }
 
 bool ObsSceneTreeView::HasUnassociatedScenes() const {
@@ -1129,6 +1210,25 @@ bool ObsSceneTreeView::HasUnassociatedScenesHelper(
     }
   }
   return false;
+}
+
+void ObsSceneTreeView::RestoreExpansionStates(QStandardItem *parent) {
+  if (!parent) {
+    parent = scene_tree_items_.invisibleRootItem();
+  }
+  for (int i = 0; i < parent->rowCount(); ++i) {
+    QStandardItem *child = parent->child(i);
+    if (child && child->type() == StvItemModel::kFolder) {
+      bool expanded = child->data(StvItemModel::kExpanded).toBool();
+      blog(
+          LOG_INFO,
+          "[%s] RestoreExpansionStates: restoring folder '%s' to expanded = %s",
+          obs_module_name(), child->text().toStdString().c_str(),
+          expanded ? "true" : "false");
+      stv_dock_.stvTree->setExpanded(child->index(), expanded);
+      RestoreExpansionStates(child);
+    }
+  }
 }
 
 } // namespace scene_tree_view

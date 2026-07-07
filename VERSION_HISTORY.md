@@ -4,6 +4,12 @@ This document tracks the main updates, fixes, and changes made to the Scene Tree
 
 ---
 
+### v0.2.6
+* **Author**: Anthony Mendez
+- **Remember Folder & Scroll Positions**: The plugin now automatically saves which folders you have open/closed and how far you scrolled. When you restart OBS, everything opens back exactly where you left it.
+- **Startup Crash Fix**: Fixed a bug where OBS would crash on startup when trying to restore scroll positions before the interface was fully loaded.
+- **Improved Folder State Reliability**: Fixed an issue where folders would randomly close themselves when renaming scenes, re-ordering them, or changing your active scene collection.
+
 ### v0.2.5
 * **Author**: Anthony Mendez
 - **Animated Loading Screen**: Added a beautiful visual loading screen (`Loading...` with cycling ellipsis) that displays while the folder structure and scene tree lazy-load asynchronously.
