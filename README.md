@@ -1,5 +1,10 @@
 # Scene Tree View Plugin for OBS Studio
 
+<!-- Build & Release Workflow Statuses -->
+
+![Build Status](https://github.com/anthonymendez/scene-tree-view/actions/workflows/build.yml/badge.svg)
+![Release Status](https://github.com/anthonymendez/scene-tree-view/actions/workflows/release.yml/badge.svg)
+
 A powerful OBS Studio plugin that adds a hierarchical scene tree view dock, enabling efficient scene and folder management with drag-and-drop support.
 
 ![Screenshot](images/obs_scene_tree_view_example.png)
@@ -127,18 +132,19 @@ After building, install the plugin into the system OBS installation:
 
 For users who install OBS Studio via Flatpak, you can install the plugin as a Flatpak extension:
 
-1) Download the latest `obs-scene-tree-view.flatpak` from GitHub Releases
-2) Install the extension:
+1. Download the latest `obs-scene-tree-view.flatpak` from GitHub Releases
+2. Install the extension:
    ```bash
    flatpak install obs-scene-tree-view.flatpak
    ```
-3) Start OBS Studio:
+3. Start OBS Studio:
    ```bash
    flatpak run com.obsproject.Studio
    ```
-4) Enable the dock: View → Docks → Scene Tree View
+4. Enable the dock: View → Docks → Scene Tree View
 
 **Notes:**
+
 - This only works with the Flatpak version of OBS Studio
 - For native OBS installations, use the standard Linux installation above
 
@@ -418,7 +424,7 @@ This project is licensed under the **GNU General Public License v2.0 or later** 
 
 ## Credits
 
-- Original author: DigitOtter
+- Original authors: [TheThirdRail](https://github.com/TheThirdRail/scene-tree-view), [DigitOtter](https://github.com/TheThirdRail/scene-tree-view/)
 - OBS Studio: https://obsproject.com
 - Qt Framework: https://www.qt.io
 
