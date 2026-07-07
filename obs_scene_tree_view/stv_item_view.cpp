@@ -9,14 +9,14 @@
 
 namespace scene_tree_view {
 
-StvItemView::StvItemView(QWidget* parent) : QTreeView(parent) {
+StvItemView::StvItemView(QWidget *parent) : QTreeView(parent) {
   setSelectionMode(QAbstractItemView::ExtendedSelection);
 }
 
-void StvItemView::SetItemModel(StvItemModel* model) { model_ = model; }
+void StvItemView::SetItemModel(StvItemModel *model) { model_ = model; }
 
-void StvItemView::selectionChanged(const QItemSelection& selected,
-                                   const QItemSelection& deselected) {
+void StvItemView::selectionChanged(const QItemSelection &selected,
+                                   const QItemSelection &deselected) {
   QTreeView::selectionChanged(selected, deselected);
 
   QModelIndex curr = currentIndex();
@@ -24,7 +24,7 @@ void StvItemView::selectionChanged(const QItemSelection& selected,
     return;
   }
 
-  QStandardItem* item = model_->itemFromIndex(curr);
+  QStandardItem *item = model_->itemFromIndex(curr);
   if (item && item->type() == StvItemModel::kScene) {
     model_->SetSelectedScene(item, obs_frontend_preview_program_mode_active());
   }
@@ -32,7 +32,7 @@ void StvItemView::selectionChanged(const QItemSelection& selected,
 
 void StvItemView::EditSelectedItem() { edit(currentIndex()); }
 
-void StvItemView::mouseDoubleClickEvent(QMouseEvent* event) {
+void StvItemView::mouseDoubleClickEvent(QMouseEvent *event) {
   if (obs_frontend_preview_enabled()) {
     // If preview mode is enabled, check whether the option to transition output
     // scenes on double-click is active.
@@ -41,7 +41,7 @@ void StvItemView::mouseDoubleClickEvent(QMouseEvent* event) {
                         "TransitionOnDoubleClick");
 
     if (transition_enabled) {
-      QStandardItem* item = model_->itemFromIndex(indexAt(event->pos()));
+      QStandardItem *item = model_->itemFromIndex(indexAt(event->pos()));
       if (item && item->type() == StvItemModel::kScene) {
         model_->SetSelectedScene(item, /*set_preview_scene=*/false,
                                  /*force_set_scene=*/true);
@@ -55,4 +55,4 @@ void StvItemView::mouseDoubleClickEvent(QMouseEvent* event) {
   QTreeView::mouseDoubleClickEvent(event);
 }
 
-}  // namespace scene_tree_view
+} // namespace scene_tree_view

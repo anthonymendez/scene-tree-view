@@ -17,30 +17,30 @@ namespace scene_tree_view {
 class StvItemView : public QTreeView {
   Q_OBJECT
 
- public:
+public:
   // Creates a new scene tree item view.
-  explicit StvItemView(QWidget* parent = nullptr);
+  explicit StvItemView(QWidget *parent = nullptr);
   ~StvItemView() override = default;
 
   // Associates this view with the provided item model.
-  void SetItemModel(StvItemModel* model);
+  void SetItemModel(StvItemModel *model);
 
- protected slots:
+protected slots:
   // Handles selection changes to update active scene in OBS.
-  void selectionChanged(const QItemSelection& selected,
-                        const QItemSelection& deselected) override;
+  void selectionChanged(const QItemSelection &selected,
+                        const QItemSelection &deselected) override;
 
   // Initiates renaming editor for the currently selected item.
   void EditSelectedItem();
 
   // Handles mouse double-click events to trigger rename or transition.
-  void mouseDoubleClickEvent(QMouseEvent* event) override;
+  void mouseDoubleClickEvent(QMouseEvent *event) override;
 
- private:
+private:
   // Pointer to the underlying scene tree item model.
-  StvItemModel* model_ = nullptr;
+  StvItemModel *model_ = nullptr;
 };
 
-}  // namespace scene_tree_view
+} // namespace scene_tree_view
 
-#endif  // OBS_SCENE_TREE_VIEW_STV_ITEM_VIEW_H_
+#endif // OBS_SCENE_TREE_VIEW_STV_ITEM_VIEW_H_
