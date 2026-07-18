@@ -58,6 +58,8 @@ A powerful OBS Studio plugin that adds a hierarchical scene tree view dock, enab
 > Qt version must match the OBS runtime’s Qt exactly. For OBS 32.0.1, use Qt 6.8.3.
 > Mixing Qt versions (e.g., building against 6.9.x while running OBS with 6.8.3) will prevent the plugin from loading.
 
+## Installation
+
 <details open>
 
 <summary>Auto Installation</summary>
