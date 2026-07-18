@@ -13,7 +13,7 @@ A powerful OBS Studio plugin that adds a hierarchical scene tree view dock, enab
 > This is a third‑party plugin and is not affiliated with or endorsed by the OBS Project.
 
 > [!NOTE]
-> This is a continuation of [TheThirdRail/scene-tree-view](https://github.com/TheThirdRail/scene-tree-view), which itself is a fork of [pal1000/obs-scene-tree](https://github.com/DigitOtter/obs_scene_tree_view).
+> This is a continuation of [TheThirdRail/scene-tree-view](https://github.com/TheThirdRail/scene-tree-view), which itself is a fork of [DigitOtter/obs-scene-tree](https://github.com/DigitOtter/obs_scene_tree_view).
 
 ## Supported Platforms
 
