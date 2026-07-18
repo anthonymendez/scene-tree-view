@@ -9,9 +9,11 @@ A powerful OBS Studio plugin that adds a hierarchical scene tree view dock, enab
 
 ![Screenshot](images/obs-scene-tree-027-example.gif)
 
-> Note: This is a third‑party plugin and is not affiliated with or endorsed by the OBS Project.
+> [!NOTE]
+> This is a third‑party plugin and is not affiliated with or endorsed by the OBS Project.
 
-> Note: This is a continuation of [TheThirdRail/scene-tree-view](https://github.com/TheThirdRail/scene-tree-view), which itself is a fork of [pal1000/obs-scene-tree](https://github.com/DigitOtter/obs_scene_tree_view).
+> [!NOTE]
+> This is a continuation of [TheThirdRail/scene-tree-view](https://github.com/TheThirdRail/scene-tree-view), which itself is a fork of [pal1000/obs-scene-tree](https://github.com/DigitOtter/obs_scene_tree_view).
 
 ## Supported Platforms
 
@@ -23,11 +25,10 @@ A powerful OBS Studio plugin that adds a hierarchical scene tree view dock, enab
 | **Linux**   | x86_64                  | 32.x+       | ✅ Fully Supported |
 | **macOS**   | x64 + arm64 (Universal) | 32.0.4+     | ✅ Fully Supported |
 
-**Notes:**
-
-- **Windows**: Pre-built binaries available in releases
-- **Linux**: Requires strict OBS 32.x version matching (libobs 32)
-- **macOS**: Universal binary supports both Intel and Apple Silicon Macs; unsigned (requires Gatekeeper bypass)
+> [!NOTE]
+> **Windows**: Pre-built binaries available in releases
+> **Linux**: Requires strict OBS 32.x version matching (libobs 32)
+> **macOS**: Universal binary supports both Intel and Apple Silicon Macs; unsigned (requires Gatekeeper bypass)
 
 ## Features
 
@@ -39,18 +40,6 @@ A powerful OBS Studio plugin that adds a hierarchical scene tree view dock, enab
 - **Per-Scene Transitions**: Configure custom transitions for individual scenes
 - **Scene Collection Support**: Automatically saves and restores scene tree structure with scene collections
 - **Cross-Platform**: Works on Windows, macOS, and Linux
-
-## Releases
-
-Official builds for Windows, macOS, and Linux are published on the GitHub Releases page:
-
-- https://github.com/anthonymendez/scene-tree-view/releases
-
-Each ZIP is packaged with a system-level folder layout so you can unzip directly into your system directories and everything “falls into place.” An INSTALL.txt is included inside each ZIP with step-by-step instructions.
-
-- Windows: unzip into C:\\Program Files (includes DLL + PDB + locales)
-- macOS: unzip into / (Library/Application Support paths)
-- Linux: unzip into / (usr/lib + usr/share paths)
 
 ## Prerequisites (Windows)
 
@@ -64,28 +53,51 @@ Each ZIP is packaged with a system-level folder layout so you can unzip directly
   - OBS source: `C:\OBS-SDK\obs-studio-src`
   - OBS deps (Qt 6.8.3 pack): `C:\OBS-SDK\obs-studio-src\.deps\obs-deps-qt6-2025-08-23-x64`
 
-Notes:
+> [!NOTE]
+> These binaries require OBS Studio 32.0.1+ (built against libobs 32 and Qt 6.8.3). Older OBS releases are not ABI-compatible with this build.
+> Qt version must match the OBS runtime’s Qt exactly. For OBS 32.0.1, use Qt 6.8.3.
+> Mixing Qt versions (e.g., building against 6.9.x while running OBS with 6.8.3) will prevent the plugin from loading.
 
-- These binaries require OBS Studio 32.0.1+ (built against libobs 32 and Qt 6.8.3). Older OBS releases are not ABI-compatible with this build.
-- Qt version must match the OBS runtime’s Qt exactly. For OBS 32.0.1, use Qt 6.8.3.
-- Mixing Qt versions (e.g., building against 6.9.x while running OBS with 6.8.3) will prevent the plugin from loading.
+<details open>
 
-## Installation from Release ZIP (Windows)
+<summary>Auto Installation</summary>
 
-For end users, the easiest way to install is with a pre-built release ZIP that contains only the plugin binaries.
+### Windows
 
-### ⚡ Automated Installation (Recommended)
+Open up a PowerShell window and run the following command.
 
-You can automatically download, install/update the plugin by running the following command in PowerShell:
+> [!NOTE]
+> This script detects standard or portable OBS installations (allowing you to choose target directories if multiple exist) and self-elevates if Administrator permissions are required to copy files.
 
 ```powershell
 irm https://raw.githubusercontent.com/anthonymendez/scene-tree-view/main/scripts/install-windows.ps1 | iex
 ```
 
-> [!NOTE]
-> This script detects standard or portable OBS installations (allowing you to choose target directories if multiple exist) and self-elevates if Administrator permissions are required to copy files.
+### Linux
 
-### 🛠️ Manual Installation Steps
+> [!NOTE]
+> This distro-agnostic script installs the plugin at user-level (`~/.config/obs-studio/plugins/`), supports Flatpak, and Snap installations. It does not require `sudo`.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/anthonymendez/scene-tree-view/main/scripts/install-linux.sh | bash
+```
+
+### macOS
+
+> [!WARNING]
+> Currently untested, use at your own risk.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/anthonymendez/scene-tree-view/main/scripts/install-macos.sh | bash
+```
+
+</details>
+
+<details>
+
+<summary>Manual Installation</summary>
+
+### Windows
 
 1. Download the latest release ZIP from this repository's GitHub Releases page.
    - The ZIP includes: `obs_scene_tree_view.dll` and `obs_scene_tree_view.pdb`
@@ -107,62 +119,14 @@ irm https://raw.githubusercontent.com/anthonymendez/scene-tree-view/main/scripts
    - If it doesn't appear: View → Docks → Reset UI, then re-check the dock
 6. If OBS was open during the copy, restart OBS to load the new plugin binaries.
 
-## Installation (Windows)
-
-After building, install the plugin into the system OBS installation:
-
-1. Close OBS Studio
-2. Copy the built DLL (v0.1.9) to the 64-bit plugins folder:
-   - From: `d:\Coding\obs-plugins\obs_scene_tree_view\build_qt683\RelWithDebInfo\obs_scene_tree_view.dll`
-   - To: `C:\Program Files\obs-studio\obs-plugins\64bit\obs_scene_tree_view.dll`
-3. Copy locale files (for translated titles/strings):
-   - From: `d:\Coding\obs-plugins\obs_scene_tree_view\data\locale\`
-   - To: `C:\Program Files\obs-studio\data\obs-plugins\obs_scene_tree_view\locale\`
-   - Example (PowerShell, run as Admin):
-     ```powershell
-     robocopy "data\locale" "C:\Program Files\obs-studio\data\obs-plugins\obs_scene_tree_view\locale" /E
-     ```
-4. Launch OBS Studio and enable the dock:
-   - View → Docks → Scene Tree View (check it)
-5. If you don’t see it immediately, use View → Docks → Reset UI once, then re-check the dock.
-
-## Installation from Release ZIP (Linux)
-
-### ⚡ Automated Installation (Recommended)
-
-You can automatically download, install/update the plugin by running the following command in your terminal:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/anthonymendez/scene-tree-view/main/scripts/install-linux.sh | bash
-```
-
-> [!NOTE]
-> This distro-agnostic script installs the plugin at user-level (`~/.config/obs-studio/plugins/`), support Flatpak, and Snap installations, and does not require `sudo` permissions.
-
-### 🛠️ Manual Installation Steps
+### Linux
 
 1. Download the latest `obs-scene-tree-view-linux-x86_64.zip` from GitHub Releases
 2. Close OBS Studio completely
-3. Extract the archive
-4. As root, copy the contents to system directories:
-   ```bash
-   sudo cp -r usr/lib/obs-plugins/* /usr/lib/obs-plugins/
-   ```
-   ```bash
-   sudo cp -r usr/share/obs/* /usr/share/obs/
-   ```
-5. Start OBS Studio
-6. Enable the dock: View → Docks → Scene Tree View (Reset UI if needed)
+3. Extract the archive into your plugins directory (usually `$HOME/.config/obs-studio/plugins/obs_scene_tree_view`).
+4. Launch OBS Studio and enable the dock: View → Docks → Scene Tree View (Reset UI if needed).
 
-**Important Notes:**
-
-- This is a system-level install and requires root privileges
-- OBS 32.x is required (strict version matching)
-- Plugin must be built against the same libobs version as your OBS installation
-
-## Installation from Flatpak (Linux)
-
-For users who install OBS Studio via Flatpak, you can install the plugin as a Flatpak extension:
+### Linux Flatpak
 
 1. Download the latest `obs-scene-tree-view.flatpak` from GitHub Releases
 2. Install the extension:
@@ -175,25 +139,10 @@ For users who install OBS Studio via Flatpak, you can install the plugin as a Fl
    ```
 4. Enable the dock: View → Docks → Scene Tree View
 
-**Notes:**
+### macOS
 
-- This only works with the Flatpak version of OBS Studio
-- For native OBS installations, use the standard Linux installation above
-
-## Installation from Release ZIP (macOS)
-
-### ⚡ Automated Installation (Recommended)
-
-You can automatically download, install/update, and bypass Gatekeeper security blocks by running:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/anthonymendez/scene-tree-view/main/scripts/install-macos.sh | bash
-```
-
-> [!NOTE]
-> This script installs the plugin to your user Library path (`~/Library/Application Support/obs-studio/plugins/`) and automatically removes quarantine attributes to avoid manual Gatekeeper steps.
-
-### 🛠️ Manual Installation Steps
+> [!WARNING]
+> Information here is untested, and needs to be verified.
 
 1. Download the latest `obs-scene-tree-view-macos.zip` from GitHub Releases
 2. Close OBS Studio completely
@@ -233,7 +182,138 @@ curl -fsSL https://raw.githubusercontent.com/anthonymendez/scene-tree-view/main/
 - Universal binary (x86_64 + arm64) for Intel and Apple Silicon Macs
 - Plugin is NOT code-signed; Gatekeeper bypass is required on first launch
 
-## Building from Source
+</details>
+
+## Releases
+
+Official builds for Windows, macOS, and Linux are published on the GitHub Releases page:
+
+- https://github.com/anthonymendez/scene-tree-view/releases
+
+Each ZIP is packaged with a system-level folder layout so you can unzip directly into your system directories and everything “falls into place.” An INSTALL.txt is included inside each ZIP with step-by-step instructions.
+
+- Windows: unzip into C:\\Program Files (includes DLL + PDB + locales)
+- macOS: unzip into / (Library/Application Support paths)
+- Linux: unzip into / (usr/lib + usr/share paths)
+
+## Usage
+
+### Accessing the Scene Tree View
+
+1. Open OBS Studio
+2. Go to **Docks** menu
+3. Select **Scene Tree View**
+4. The Scene Tree View dock will appear (typically on the left side)
+
+### Basic Operations
+
+#### Adding Scenes
+
+- Right-click in the Scene Tree View → **New Scene**
+- Or use the standard OBS scene creation method
+
+#### Creating Folders
+
+- Right-click in the Scene Tree View → **New Folder**
+- Folders help organize related scenes
+
+#### Organizing Scenes
+
+- **Drag and Drop**: Click and drag scenes to reorder or move them into folders
+
+- **Rename**: Right-click a scene/folder → **Rename**
+- **Delete**: Right-click a scene/folder → **Delete**
+
+#### Reordering with Move Up/Down buttons
+
+- Select a scene or folder, then click Move Up or Move Down to move it exactly one position.
+- The selection stays on the moved item after the move.
+- When the selected item is at the top, Up is disabled; when it is at the bottom, Down is disabled.
+- Disabled icons retain their normal color (non-dimmed) to keep the UI visually stable; only enablement changes.
+
+#### Scene Selection
+
+- Click a scene in the tree to select it as the current scene
+- Double-click to switch to preview mode (if enabled)
+
+#### Per-Scene Transitions
+
+- Right-click a scene → **Transition** to set a custom transition for that scene
+
+### Keyboard Shortcuts
+
+- **Delete**: Remove selected scene or folder
+- **F2**: Rename selected item
+- **Drag & Drop**: Reorder scenes and folders
+
+## Troubleshooting
+
+### Plugin Not Appearing in OBS
+
+**Problem**: The Scene Tree View dock doesn't appear in the Docks menu.
+
+**Solutions**:
+
+1. Verify the DLL is installed to the system OBS folder (not AppData):
+   - `C:\Program Files\obs-studio\obs-plugins\64bit\obs_scene_tree_view.dll`
+   - Remove any older copies from `%APPDATA%\obs-studio\plugins\...` that could shadow the system plugin.
+2. In OBS, enable the dock:
+   - View → Docks → Scene Tree View (check it)
+   - If missing: View → Docks → Reset UI, then re-check the dock entry.
+3. Check OBS logs for clues (Help → Log Files):
+   - Look for lines containing `obs_scene_tree_view` and `registered via`.
+4. Ensure OBS Studio is 32.0.1+ (Help → About OBS Studio).
+
+## Contributing
+
+Contributions are welcome! Please follow these guidelines:
+
+1. **Fork** the repository
+2. **Create a feature branch**: `git checkout -b feature/your-feature`
+3. **Make your changes** and test thoroughly
+4. **Commit** with clear, descriptive messages
+5. **Push** to your fork
+6. **Create a Pull Request** with a detailed description
+
+### Development Setup
+
+1. Clone the repository
+2. Follow the "Building from Source" section above
+3. Make your changes
+4. Test on all supported platforms if possible
+5. Submit a pull request
+
+### Code Style
+
+- Follow the existing code style in the repository
+- Use `.clang-format` for C++ formatting
+- Keep commits atomic and well-documented
+
+## License
+
+This project is licensed under the **GNU General Public License v2.0 or later** – see the [LICENSE](LICENSE) file for details.
+
+## Credits
+
+- Original authors: [TheThirdRail](https://github.com/TheThirdRail/scene-tree-view), [DigitOtter](https://github.com/TheThirdRail/scene-tree-view/)
+- OBS Studio: https://obsproject.com
+- Qt Framework: https://www.qt.io
+
+## Support
+
+For issues, questions, or suggestions:
+
+1. Check the [Troubleshooting](#troubleshooting) section
+2. Search existing [GitHub Issues](https://github.com/anthonymendez/scene-tree-view/issues)
+3. Create a new issue with:
+   - OBS Studio version
+   - Plugin version
+   - Operating system and version
+   - Detailed description of the problem
+   - Steps to reproduce
+   - OBS log file (Help → Log Files)
+
+## Building from Source [Outdated]
 
 ### Windows
 
@@ -318,171 +398,3 @@ cmake --build . --config Release
 # Install
 sudo cmake --install . --config Release
 ```
-
-## Usage
-
-### Accessing the Scene Tree View
-
-1. Open OBS Studio
-2. Go to **Docks** menu
-3. Select **Scene Tree View**
-4. The Scene Tree View dock will appear (typically on the left side)
-
-### Basic Operations
-
-#### Adding Scenes
-
-- Right-click in the Scene Tree View → **New Scene**
-- Or use the standard OBS scene creation method
-
-#### Creating Folders
-
-- Right-click in the Scene Tree View → **New Folder**
-- Folders help organize related scenes
-
-#### Organizing Scenes
-
-- **Drag and Drop**: Click and drag scenes to reorder or move them into folders
-
-- **Rename**: Right-click a scene/folder → **Rename**
-- **Delete**: Right-click a scene/folder → **Delete**
-
-#### Reordering with Move Up/Down buttons
-
-- Select a scene or folder, then click Move Up or Move Down to move it exactly one position.
-- The selection stays on the moved item after the move.
-- When the selected item is at the top, Up is disabled; when it is at the bottom, Down is disabled.
-- Disabled icons retain their normal color (non-dimmed) to keep the UI visually stable; only enablement changes.
-
-#### Scene Selection
-
-- Click a scene in the tree to select it as the current scene
-- Double-click to switch to preview mode (if enabled)
-
-#### Per-Scene Transitions
-
-- Right-click a scene → **Transition** to set a custom transition for that scene
-
-### Keyboard Shortcuts
-
-- **Delete**: Remove selected scene or folder
-- **F2**: Rename selected item
-- **Drag & Drop**: Reorder scenes and folders
-
-## Troubleshooting
-
-### Plugin Not Appearing in OBS
-
-**Problem**: The Scene Tree View dock doesn't appear in the Docks menu.
-
-**Solutions**:
-
-1. Verify the DLL is installed to the system OBS folder (not AppData):
-   - `C:\Program Files\obs-studio\obs-plugins\64bit\obs_scene_tree_view.dll`
-   - Remove any older copies from `%APPDATA%\obs-studio\plugins\...` that could shadow the system plugin.
-2. In OBS, enable the dock:
-   - View → Docks → Scene Tree View (check it)
-   - If missing: View → Docks → Reset UI, then re-check the dock entry.
-3. Check OBS logs for clues (Help → Log Files):
-   - Look for lines containing `obs_scene_tree_view` and `registered via`.
-4. Ensure OBS Studio is 32.0.1+ (Help → About OBS Studio).
-
-### Build Errors
-
-**Problem**: CMake cannot find OBS libraries (libobs/obs-frontend-api)
-
-**Solutions (Windows)**:
-
-1. Ensure you set these before configuring:
-   - `$env:OBS_SRC = "C:\OBS-SDK\obs-studio-src"`
-   - `$env:OBS_DEPS = "$env:OBS_SRC\.deps\obs-deps-qt6-2025-08-23-x64"`
-   - `$env:CMAKE_PREFIX_PATH = "$env:OBS_DEPS;$env:OBS_DEPS\qt6;$env:OBS_DEPS\obs-studio;$env:OBS_DEPS\obs-studio\lib\cmake"`
-2. Re-run CMake configure (see Windows build section).
-3. If still failing, verify the deps pack exists and contains `lib/cmake/libobs` and `lib/cmake/obs-frontend-api`.
-
-**Problem**: Qt version mismatch (plugin loads fails or dock missing without clear error)
-
-**Solutions**:
-
-1. OBS 32.0.1 uses Qt 6.8.3. Build the plugin against Qt 6.8.3 exactly (from the obs-deps pack).
-2. Confirm CMake is using `-DQt6_DIR="C:\OBS-SDK\obs-studio-src\.deps\obs-deps-qt6-2025-08-23-x64\qt6\lib\cmake\Qt6"`.
-
-**Problem**: "C++17 or later required" error
-
-**Solutions**:
-
-1. Use Visual Studio 2022 (v143) and CMake 3.28+.
-2. Ensure your Kit/Generator is "Visual Studio 17 2022" and `-A x64`.
-
-### Runtime Issues
-
-**Problem**: Plugin crashes when adding/removing scenes
-
-**Solutions**:
-
-1. Update OBS Studio to the latest 32.x version
-2. Check OBS logs for specific error messages
-3. Try disabling other plugins to isolate the issue
-4. Report the issue with logs attached
-
-**Problem**: Scene tree doesn't update when scenes are added externally
-
-**Solutions**:
-
-1. This is expected behavior - refresh by switching scenes
-2. Scene tree updates automatically when using the tree view UI
-3. Check that the plugin is enabled in Tools → Plugins
-
-## Known Issues
-
-- [ ] Undo/Redo scene rename does not update Scene Tree
-- [ ] Add Fullscreen Viewport Projector option to scene context menu
-
-## Contributing
-
-Contributions are welcome! Please follow these guidelines:
-
-1. **Fork** the repository
-2. **Create a feature branch**: `git checkout -b feature/your-feature`
-3. **Make your changes** and test thoroughly
-4. **Commit** with clear, descriptive messages
-5. **Push** to your fork
-6. **Create a Pull Request** with a detailed description
-
-### Development Setup
-
-1. Clone the repository
-2. Follow the "Building from Source" section above
-3. Make your changes
-4. Test on all supported platforms if possible
-5. Submit a pull request
-
-### Code Style
-
-- Follow the existing code style in the repository
-- Use `.clang-format` for C++ formatting
-- Keep commits atomic and well-documented
-
-## License
-
-This project is licensed under the **GNU General Public License v2.0 or later** – see the [LICENSE](LICENSE) file for details.
-
-## Credits
-
-- Original authors: [TheThirdRail](https://github.com/TheThirdRail/scene-tree-view), [DigitOtter](https://github.com/TheThirdRail/scene-tree-view/)
-- OBS Studio: https://obsproject.com
-- Qt Framework: https://www.qt.io
-
-## Support
-
-For issues, questions, or suggestions:
-
-1. Check the [Troubleshooting](#troubleshooting) section
-2. Search existing [GitHub Issues](https://github.com/anthonymendez/scene-tree-view/issues)
-3. Create a new issue with:
-   - OBS Studio version
-   - Plugin version
-   - Operating system and version
-   - Detailed description of the problem
-   - Steps to reproduce
-   - OBS log file (Help → Log Files)
