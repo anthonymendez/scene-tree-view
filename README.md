@@ -7,7 +7,7 @@
 
 A powerful OBS Studio plugin that adds a hierarchical scene tree view dock, enabling efficient scene and folder management with drag-and-drop support.
 
-![Screenshot](images/obs_scene_tree_view_example.png)
+![Screenshot](images/obs-scene-tree-027-example.gif)
 
 > Note: This is a third‑party plugin and is not affiliated with or endorsed by the OBS Project.
 
