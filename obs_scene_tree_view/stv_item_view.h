@@ -25,6 +25,10 @@ public:
   // Associates this view with the provided item model.
   void SetItemModel(StvItemModel *model);
 
+signals:
+  // Emitted when Delete or Backspace key is pressed.
+  void deletePressed();
+
 protected slots:
   // Handles selection changes to update active scene in OBS.
   void selectionChanged(const QItemSelection &selected,
@@ -35,6 +39,9 @@ protected slots:
 
   // Handles mouse double-click events to trigger rename or transition.
   void mouseDoubleClickEvent(QMouseEvent *event) override;
+
+  // Handles key presses like Delete or Backspace to delete selected scenes.
+  void keyPressEvent(QKeyEvent *event) override;
 
 private:
   // Pointer to the underlying scene tree item model.

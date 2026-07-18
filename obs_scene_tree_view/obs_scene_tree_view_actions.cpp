@@ -75,16 +75,166 @@ void ObsSceneTreeView::on_stvAddFolder_clicked() {
   SaveSceneTree(scene_collection_name_);
 }
 
+static void CollectScenes(QStandardItem *item, QList<QStandardItem *> &scenes) {
+  if (!item) {
+    return;
+  }
+  if (item->type() == StvItemModel::kScene) {
+    if (!scenes.contains(item)) {
+      scenes.append(item);
+    }
+  } else if (item->type() == StvItemModel::kFolder) {
+    for (int i = 0; i < item->rowCount(); ++i) {
+      CollectScenes(item->child(i), scenes);
+    }
+  }
+}
+
 void ObsSceneTreeView::on_stvRemove_released() {
-  QStandardItem *selected =
-      scene_tree_items_.itemFromIndex(stv_dock_.stvTree->currentIndex());
-  if (selected) {
-    assert(selected->type() == StvItemModel::kFolder ||
-           selected->type() == StvItemModel::kScene);
-    if (selected->type() == StvItemModel::kScene) {
-      QMetaObject::invokeMethod(remove_scene_act_, "triggered");
-    } else {
-      RemoveFolder(selected);
+  QItemSelectionModel *selection_model = stv_dock_.stvTree->selectionModel();
+  if (!selection_model) {
+    return;
+  }
+
+  QModelIndexList selected_indexes = selection_model->selectedIndexes();
+  QList<QStandardItem *> selected_items;
+  for (const QModelIndex &index : selected_indexes) {
+    if (index.column() != 0) {
+      continue;
+    }
+    QStandardItem *item = scene_tree_items_.itemFromIndex(index);
+    if (item && !selected_items.contains(item)) {
+      selected_items.append(item);
+    }
+  }
+
+  if (selected_items.isEmpty()) {
+    QModelIndex curr = stv_dock_.stvTree->currentIndex();
+    if (curr.isValid()) {
+      QStandardItem *item = scene_tree_items_.itemFromIndex(curr);
+      if (item) {
+        selected_items.append(item);
+      }
+    }
+  }
+
+  if (selected_items.isEmpty()) {
+    return;
+  }
+
+  // Filter to keep only top-level selected items
+  QList<QStandardItem *> top_level_selected;
+  for (QStandardItem *item : selected_items) {
+    bool ancestor_selected = false;
+    QStandardItem *parent = item->parent();
+    while (parent) {
+      if (selected_items.contains(parent)) {
+        ancestor_selected = true;
+        break;
+      }
+      parent = parent->parent();
+    }
+    if (!ancestor_selected) {
+      top_level_selected.append(item);
+    }
+  }
+
+  // Collect all scenes recursively
+  QList<QStandardItem *> scenes_to_delete;
+  for (QStandardItem *item : top_level_selected) {
+    CollectScenes(item, scenes_to_delete);
+  }
+
+  if (scenes_to_delete.size() > 1) {
+    // Multi-delete confirmation
+    QMainWindow *main_window =
+        reinterpret_cast<QMainWindow *>(obs_frontend_get_main_window());
+
+    QString title =
+        QString::fromUtf8(obs_module_text("SceneTreeView.MultiDelete.Confirm"));
+    if (title.isEmpty() ||
+        title == QLatin1String("SceneTreeView.MultiDelete.Confirm")) {
+      title = QStringLiteral("Delete Multiple Scenes");
+    }
+
+    QString text =
+        QString::fromUtf8(obs_module_text("SceneTreeView.MultiDelete.Text"));
+    if (text.isEmpty() ||
+        text == QLatin1String("SceneTreeView.MultiDelete.Text")) {
+      text = QStringLiteral(
+          "Are you sure you want to delete the following scenes?");
+    }
+
+    QString list_html = QStringLiteral("<ul>");
+    for (QStandardItem *item : scenes_to_delete) {
+      list_html +=
+          QStringLiteral("<li>%1</li>").arg(item->text().toHtmlEscaped());
+    }
+    list_html += QStringLiteral("</ul>");
+
+    QMessageBox mb(main_window);
+    mb.setWindowTitle(title);
+    mb.setIcon(QMessageBox::Question);
+    mb.setTextFormat(Qt::RichText);
+    mb.setText(QStringLiteral("<p>%1</p>%2").arg(text, list_html));
+    mb.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+    mb.setDefaultButton(QMessageBox::No);
+
+    if (mb.exec() == QMessageBox::Yes) {
+      // First, get all the raw source pointers and add a reference to them
+      QList<obs_source_t *> raw_sources;
+      for (QStandardItem *item : scenes_to_delete) {
+        obs_weak_source_t *weak =
+            item->data(StvItemModel::kObsScene).value<ObsWeakSourcePtr>().ptr;
+        OBSSourceAutoRelease source = OBSGetStrongRef(weak);
+        if (source) {
+          obs_source_t *ref = obs_source_get_ref(source.Get());
+          if (ref) {
+            raw_sources.append(ref);
+          }
+        }
+      }
+
+      // Gather persistent model indexes of the top-level folders to remove
+      QList<QPersistentModelIndex> folders_to_remove;
+      for (QStandardItem *item : top_level_selected) {
+        if (item->type() == StvItemModel::kFolder) {
+          folders_to_remove.append(QPersistentModelIndex(item->index()));
+        }
+      }
+
+      // Remove scenes from OBS
+      for (obs_source_t *source : raw_sources) {
+        obs_source_remove(source);
+        obs_source_release(source); // Release our reference
+      }
+
+      // Remove top-level folders from model using their persistent indexes
+      for (const QPersistentModelIndex &p_idx : folders_to_remove) {
+        if (p_idx.isValid()) {
+          QStandardItem *folder_item = scene_tree_items_.itemFromIndex(p_idx);
+          if (folder_item) {
+            QStandardItem *parent =
+                scene_tree_items_.GetParentOrRoot(folder_item->index());
+            if (parent) {
+              parent->removeRow(folder_item->row());
+            }
+          }
+        }
+      }
+
+      UpdateTreeView();
+    }
+  } else {
+    // Fallback to original delete logic for 0 or 1 scenes
+    for (QStandardItem *selected : top_level_selected) {
+      if (selected->type() == StvItemModel::kScene) {
+        scene_tree_items_.SetSelectedScene(
+            selected, obs_frontend_preview_program_mode_active());
+        QMetaObject::invokeMethod(remove_scene_act_, "triggered");
+      } else {
+        RemoveFolder(selected);
+      }
     }
   }
 }
@@ -195,8 +345,7 @@ void ObsSceneTreeView::on_stvTree_customContextMenuRequested(
       QAction *rename = popup.addAction(QTStr("Rename"));
       QObject::connect(rename, SIGNAL(triggered()), stv_dock_.stvTree,
                        SLOT(EditSelectedItem()));
-      popup.addAction(QTStr("Remove"), main_window,
-                      SLOT(RemoveSelectedScene()));
+      popup.addAction(QTStr("Remove"), this, SLOT(on_stvRemove_released()));
       popup.addSeparator();
 
       QAction *sceneWindow = popup.addAction(QTStr("SceneWindow"), main_window,

@@ -4,6 +4,7 @@
 
 #include "obs_scene_tree_view/stv_item_view.h"
 
+#include <QKeyEvent>
 #include <QMouseEvent>
 #include <util/config-file.h>
 
@@ -53,6 +54,15 @@ void StvItemView::mouseDoubleClickEvent(QMouseEvent *event) {
   // If TransitionOnDoubleClick is disabled or a folder is selected, perform a
   // normal edit on double click.
   QTreeView::mouseDoubleClickEvent(event);
+}
+
+void StvItemView::keyPressEvent(QKeyEvent *event) {
+  if (event->key() == Qt::Key_Delete || event->key() == Qt::Key_Backspace) {
+    emit deletePressed();
+    event->accept();
+    return;
+  }
+  QTreeView::keyPressEvent(event);
 }
 
 } // namespace scene_tree_view
