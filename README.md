@@ -64,7 +64,7 @@ A powerful OBS Studio plugin that adds a hierarchical scene tree view dock, enab
 
 <summary>Auto Installation</summary>
 
-### Windows
+### Windows Auto Install
 
 Open up a PowerShell window and run the following command.
 
@@ -75,7 +75,7 @@ Open up a PowerShell window and run the following command.
 irm https://raw.githubusercontent.com/anthonymendez/scene-tree-view/main/scripts/install-windows.ps1 | iex
 ```
 
-### Linux
+### Linux Auto Install
 
 > [!NOTE]
 > This distro-agnostic script installs the plugin at user-level (`~/.config/obs-studio/plugins/`), supports Flatpak, and Snap installations. It does not require `sudo`.
@@ -84,7 +84,7 @@ irm https://raw.githubusercontent.com/anthonymendez/scene-tree-view/main/scripts
 curl -fsSL https://raw.githubusercontent.com/anthonymendez/scene-tree-view/main/scripts/install-linux.sh | bash
 ```
 
-### macOS
+### macOS Auto Install
 
 > [!WARNING]
 > Currently untested, use at your own risk.
