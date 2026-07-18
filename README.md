@@ -11,39 +11,17 @@ A powerful OBS Studio plugin that adds a hierarchical scene tree view dock, enab
 
 > Note: This is a third‑party plugin and is not affiliated with or endorsed by the OBS Project.
 
-## Table of Contents
-
-- [Supported Platforms](#supported-platforms)
-- [Features](#features)
-- [Releases](#releases)
-- [Prerequisites (Windows)](#prerequisites-windows)
-- [Installation](#installation)
-  - [Installation from Release ZIP (Windows)](#installation-from-release-zip-windows)
-  - [Installation (Windows)](#installation-windows)
-  - [Installation from Release ZIP (Linux)](#installation-from-release-zip-linux)
-  - [Installation from Flatpak (Linux)](#installation-from-flatpak-linux)
-  - [Installation from Release ZIP (macOS)](#installation-from-release-zip-macos)
-- [Building from Source](#building-from-source)
-  - [Windows](#windows-1)
-  - [macOS](#macos-1)
-  - [Linux](#linux-1)
-- [Usage](#usage)
-- [Troubleshooting](#troubleshooting)
-- [Known Issues](#known-issues)
-- [Contributing](#contributing)
-- [License](#license)
-- [Credits](#credits)
-- [Support](#support)
-
----
+> Note: This is a continuation of [TheThirdRail/scene-tree-view](https://github.com/TheThirdRail/scene-tree-view), which itself is a fork of [pal1000/obs-scene-tree](https://github.com/DigitOtter/obs_scene_tree_view).
 
 ## Supported Platforms
 
+> Warning: I regularly use `obs-studio-browser` for the AUR on CachyOS. If there are issues with Windows/macOS, open a issue ticket.
+
 | Platform    | Architecture            | OBS Version | Status             |
 | ----------- | ----------------------- | ----------- | ------------------ |
-| **Windows** | x64                     | 32.x+       | ✅ Fully Supported |
+| **Windows** | x64                     | 32.0.4+     | ✅ Fully Supported |
 | **Linux**   | x86_64                  | 32.x+       | ✅ Fully Supported |
-| **macOS**   | x64 + arm64 (Universal) | 32.x+       | ✅ Fully Supported |
+| **macOS**   | x64 + arm64 (Universal) | 32.0.4+     | ✅ Fully Supported |
 
 **Notes:**
 
