@@ -4,6 +4,16 @@ Shared instructions for AI coding agents (Claude Code, Antigravity/Gemini, etc.)
 
 Scene Tree View is an OBS Studio plugin written in C++ with Qt 6, built with CMake.
 
+## Branches
+- `main` — production-ready, stable releases only. Never commit to it directly.
+- `claude` — the current development branch. Merged into `main` for a release.
+
+Create bug-fix and feature branches from `claude`, and open their pull requests against `claude` (not `main`). Name them after the GitHub issue they address:
+- `I-<num>-Claude` for AI-driven work (e.g. `I-42-Claude` for issue #42).
+- `I-<num>` for work done without AI.
+
+If no issue number is known, ask for one before creating the branch.
+
 ## Coding style
 Follow the Google C++ Style Guide, kept locally at [.gemini/google_cpp_style_guide.md](.gemini/google_cpp_style_guide.md). Read the relevant section when unsure rather than loading the whole file.
 
