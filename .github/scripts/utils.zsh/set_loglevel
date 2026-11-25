@@ -1,2 +1,0 @@
-set_loglevel() { typeset -g _loglevel=${1:-1} }
-

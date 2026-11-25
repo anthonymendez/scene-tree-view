@@ -33,6 +33,8 @@ nul
 /obs-scene-tree-view-*.zip
 /obs-studio/
 /scene-tree-view-*.zip
+*.zip.sha256
+/.sha_work.txt
 
 # Research and analysis (not for version control)
 /research/

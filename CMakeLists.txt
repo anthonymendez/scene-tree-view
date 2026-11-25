@@ -1,3 +1,5 @@
+cmake_minimum_required(VERSION 3.25)
+
 set(PROJECT_NAME "obs_scene_tree_view")
 set(HEADER_DIRECTORY "obs_scene_tree_view")
 
@@ -22,7 +24,6 @@ string(JSON PROJECT_CONTRIBUTORS GET "${BUILDSPEC_CONTENTS}" "contributors")
 # Read VERSION_HISTORY.md
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION_HISTORY.md" VERSION_HISTORY_CONTENTS)
 
-cmake_minimum_required(VERSION 3.25)
 project("${PROJECT_NAME}" VERSION ${PROJECT_VERSION_STR})
 
 
@@ -59,10 +60,10 @@ endif()
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
-if(NOT ${BUILD_IN_OBS})
-		set(CMAKE_CXX_STANDARD 17)
-		set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(NOT ${BUILD_IN_OBS})
 		find_package(libobs REQUIRED)
 		find_package(obs-frontend-api REQUIRED)
 
@@ -81,11 +82,6 @@ if(NOT ${BUILD_IN_OBS})
 				message(WARNING "Building ${PROJECT_NAME} outside of OBS is currently not supported")
 		endif()
 endif()
-
-# Include OBS dependencies configuration (sets CMAKE_PREFIX_PATH)
-
-
-# Include OBS dependencies configuration (sets CMAKE_PREFIX_PATH)
 
 set(LIB_SRC_FILES
 		obs_scene_tree_view/plugin_main.cpp

@@ -1,2 +1,0 @@
-log_error() { print -u2 -PR "${CI:+::error::}%F{1}${1}%f" }
-

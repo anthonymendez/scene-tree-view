@@ -1,3 +1,0 @@
-SHA256 hash of scene-tree-view-windows-x64.zip:
-1f9b37b386fa0f3286293f9eeb3bb05e819797fed3861beb6e7c8baf3ea24dca
-CertUtil: -hashfile command completed successfully.
