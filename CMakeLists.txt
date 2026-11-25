@@ -146,4 +146,11 @@ else()
 				DESTINATION "${OBS_PLUGIN_DATA_DIR}/${PROJECT_NAME}")
 endif()
 
-# Include OBS dependencies configuration (sets CMAKE_PREFIX_PATH)
+
+##########################################
+## Tests
+option(STV_BUILD_TESTS "Build the unit tests (standalone builds only)" OFF)
+if(STV_BUILD_TESTS AND NOT ${BUILD_IN_OBS})
+		enable_testing()
+		add_subdirectory(tests)
+endif()

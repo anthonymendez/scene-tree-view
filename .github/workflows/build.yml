@@ -2,9 +2,9 @@ name: Build
 
 on:
   push:
-    branches: [master, dev, main]
+    branches: [main, claude]
   pull_request:
-    branches: [master, main]
+    branches: [main, claude]
   workflow_dispatch:
 
 jobs:
@@ -20,7 +20,18 @@ jobs:
       - name: Setup MSVC
         uses: microsoft/setup-msbuild@v2
 
+      - name: Cache OBS SDK
+        id: obs-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            obs-deps
+            qt6-deps
+            obs-build
+          key: obs-sdk-windows-x64-32.0.4-deps-2025-08-23-v1
+
       - name: Download OBS Dependencies
+        if: steps.obs-cache.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           # Download pre-built OBS dependencies (obs-deps)
@@ -56,6 +67,7 @@ jobs:
           Expand-Archive -Path $OBS_FILE -DestinationPath "${{ github.workspace }}" -Force
 
       - name: Build OBS libobs
+        if: steps.obs-cache.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           # Build libobs and obs-frontend-api from source
@@ -133,12 +145,21 @@ jobs:
             obs-studio \
             qt6-base-dev \
             qt6-base-private-dev \
-            libqt6svg6-dev
+            libqt6svg6-dev             clang-format
 
       - name: Build Plugin
         run: |
-          cmake -S . -B build -G Ninja
+          cmake -S . -B build -G Ninja -DSTV_BUILD_TESTS=ON
           cmake --build build --config RelWithDebInfo
+
+      - name: Run Tests
+        run: ctest --test-dir build --output-on-failure
+
+      # Reports formatting drift without failing the build; the existing
+      # sources have not been reformatted yet.
+      - name: Check Formatting
+        continue-on-error: true
+        run: clang-format --dry-run --Werror obs_scene_tree_view/*.cpp obs_scene_tree_view/*.h tests/*.cpp tests/*.h
 
       - name: Package Plugin
         run: |
@@ -157,7 +178,7 @@ jobs:
     name: Linux Flatpak
     runs-on: ubuntu-24.04
     container:
-      image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.10
+      image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.11
       options: --privileged
     steps:
       - name: Checkout
@@ -188,7 +209,18 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Cache OBS SDK
+        id: obs-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            obs-deps
+            qt6-deps
+            obs-build
+          key: obs-sdk-macos-universal-32.0.4-deps-2025-08-23-v1
+
       - name: Download OBS Dependencies
+        if: steps.obs-cache.outputs.cache-hit != 'true'
         run: |
           # Download pre-built OBS dependencies (obs-deps)
           OBS_DEPS_VERSION="2025-08-23"
@@ -229,6 +261,7 @@ jobs:
           xattr -r -d com.apple.quarantine "${{ github.workspace }}/qt6-deps" || true
 
       - name: Build OBS libobs
+        if: steps.obs-cache.outputs.cache-hit != 'true'
         run: |
           # Optionally disable Metal renderer for CI by patching OBS CMakeLists
           python - << 'PY'
