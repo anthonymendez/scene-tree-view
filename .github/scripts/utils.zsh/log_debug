@@ -1,2 +1,0 @@
-log_debug() { (( ${+RUNNER_DEBUG} )) && print -PR -- ${*} }
-
