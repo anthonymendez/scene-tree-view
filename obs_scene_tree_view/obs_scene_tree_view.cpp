@@ -133,7 +133,14 @@ ObsSceneTreeView::ObsSceneTreeView(QMainWindow *main_window)
   QObject::connect(loading_timeout_, &QTimer::timeout, this,
                    [this]() { HideLoadingScreen(); });
   QObject::connect(&scene_tree_items_, &QStandardItemModel::rowsInserted, this,
-                   [this](const QModelIndex &, int, int) {
+                   [this](const QModelIndex &parent, int, int) {
+                     // The view forgets the expansion of folders that were
+                     // taken out and reinserted by a move; reapply it.
+                     const bool was_loading = is_loading_;
+                     is_loading_ = true;
+                     RestoreExpansionStates(
+                         scene_tree_items_.itemFromIndex(parent));
+                     is_loading_ = was_loading;
                      if (scene_collection_name_) {
                        SaveSceneTree(scene_collection_name_);
                      }

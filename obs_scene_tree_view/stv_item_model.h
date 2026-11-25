@@ -90,11 +90,12 @@ public:
   // Returns the MIME types supported by this model.
   QStringList mimeTypes() const override;
 
-  // Serializes the dragged indexes into MIME data payload.
+  // Serializes the dragged items into a MIME payload of item pointers. Items
+  // inside a dragged folder are left out; they move with the folder.
   QMimeData *mimeData(const QModelIndexList &indexes) const override;
 
-  // Deserializes and handles dropping of MIME data payload at the given
-  // location.
+  // Moves the dragged items to the drop location. Returns false after a
+  // successful move so the view does not remove the source rows itself.
   bool dropMimeData(const QMimeData *data, Qt::DropAction action, int row,
                     int column, const QModelIndex &parent) override;
 
@@ -165,13 +166,6 @@ public:
   void AddChildToUserOrder(QStandardItem *parent, QStandardItem *child);
 
 private:
-  // Data payload representation for MIME drag-and-drop indexes.
-  struct MimeItemData {
-    QItemType type;
-    void *data; // Either QStandardItem* (if type == kFolder) or
-                // obs_weak_source_t* (if type == kScene)
-  };
-
   // Comparer struct to compare weak source pointers by their strong references.
   struct SceneComp {
     bool operator()(obs_weak_source_t *x, obs_weak_source_t *y) const {
@@ -187,14 +181,6 @@ private:
 
   // Cached canvas size properties.
   SceneSize scene_size_;
-
-  // Moves the scene standard item to a new parent row position.
-  void MoveSceneItem(obs_weak_source_t *source, int row,
-                     QStandardItem *parent_item);
-
-  // Moves the folder item recursively to a new parent row position.
-  void MoveSceneFolder(QStandardItem *item, int row,
-                       QStandardItem *parent_item);
 
   // Creates and populates an array with serialized folder hierarchy details.
   obs_data_array_t *CreateFolderArray(QStandardItem &folder, QTreeView *view);

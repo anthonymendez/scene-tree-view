@@ -4,6 +4,8 @@
 
 #include "obs_scene_tree_view/stv_item_model.h"
 
+#include <cstring>
+
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QMimeData>
@@ -60,30 +62,30 @@ QStringList StvItemModel::mimeTypes() const {
 }
 
 QMimeData *StvItemModel::mimeData(const QModelIndexList &indexes) const {
-  QMimeData *mime = new QMimeData();
-
-  const int num_indexes = indexes.size();
-
-  QByteArray mime_dat;
-  mime_dat.reserve(num_indexes * sizeof(MimeItemData) + sizeof(int));
-  mime_dat.append((const char *)&num_indexes, sizeof(int));
-
-  for (const auto &index : indexes) {
-    MimeItemData item_mime_dat;
-    const QStandardItem *item = itemFromIndex(index);
-
-    assert(item->type() == kFolder || item->type() == kScene);
-    item_mime_dat.type = (QItemType)item->type();
-    item_mime_dat.data =
-        item_mime_dat.type == QItemType::kFolder
-            ? (void *)item
-            : (void *)item->data(kObsScene).value<ObsWeakSourcePtr>().ptr;
-
-    mime_dat.append((const char *)&item_mime_dat, sizeof(MimeItemData));
+  QList<QStandardItem *> items;
+  for (const QModelIndex &index : indexes) {
+    if (QStandardItem *item = itemFromIndex(index)) {
+      items.append(item);
+    }
   }
 
-  mime->setData(kMimeType.data(), mime_dat);
+  // An item whose folder is also being dragged moves with that folder.
+  QByteArray payload;
+  for (QStandardItem *item : items) {
+    bool ancestor_dragged = false;
+    for (QStandardItem *p = item->parent(); p; p = p->parent()) {
+      if (items.contains(p)) {
+        ancestor_dragged = true;
+        break;
+      }
+    }
+    if (!ancestor_dragged) {
+      payload.append(reinterpret_cast<const char *>(&item), sizeof(item));
+    }
+  }
 
+  QMimeData *mime = new QMimeData();
+  mime->setData(kMimeType.data(), payload);
   return mime;
 }
 
@@ -100,6 +102,12 @@ bool StvItemModel::dropMimeData(const QMimeData *data, Qt::DropAction action,
     return false;
   }
 
+  const QByteArray payload = data->data(kMimeType.data());
+  const qsizetype count = payload.size() / sizeof(QStandardItem *);
+  if (count == 0) {
+    return false;
+  }
+
   if (parent_item->data(kSortMode).toInt() !=
       static_cast<int>(SortMode::kUser)) {
     parent_item->setData(static_cast<int>(SortMode::kUser), kSortMode);
@@ -109,28 +117,40 @@ bool StvItemModel::dropMimeData(const QMimeData *data, Qt::DropAction action,
     row = 0;
   }
 
-  QByteArray qdat = data->data(kMimeType.data());
-  assert(qdat.size() >= (int)sizeof(int));
+  for (qsizetype i = 0; i < count; ++i) {
+    QStandardItem *item = nullptr;
+    memcpy(&item, payload.constData() + i * sizeof(item), sizeof(item));
 
-  const char *dat = qdat.constData();
-
-  const int num_indexes = *(int *)dat;
-  dat += sizeof(int);
-
-  for (int i = 0; i < num_indexes; ++i) {
-    // Find item and move it.
-    const MimeItemData *item_data = (const MimeItemData *)dat;
-    assert(item_data->type == kFolder || item_data->type == kScene);
-    if (item_data->type == kScene) {
-      MoveSceneItem((obs_weak_source_t *)item_data->data, row + i, parent_item);
-    } else {
-      MoveSceneFolder((QStandardItem *)item_data->data, row + i, parent_item);
+    // A folder cannot be moved into itself or one of its own descendants.
+    bool into_itself = false;
+    for (QStandardItem *p = parent_item; p; p = p->parent()) {
+      if (p == item) {
+        into_itself = true;
+        break;
+      }
+    }
+    if (into_itself) {
+      continue;
     }
 
-    dat += sizeof(MimeItemData);
+    QStandardItem *source_parent =
+        item->parent() ? item->parent() : invisibleRootItem();
+    const int source_row = item->row();
+    if (source_parent == parent_item && source_row < row) {
+      --row;
+    }
+
+    const QList<QStandardItem *> taken = source_parent->takeRow(source_row);
+    if (item->type() == kFolder) {
+      item->setText(CreateUniqueFolderName(item, parent_item));
+    }
+    parent_item->insertRow(row, taken);
+    ++row;
   }
 
-  return true;
+  // The items themselves were moved above. Returning false tells the view the
+  // drop needs no further handling, so it does not remove the source rows.
+  return false;
 }
 
 void StvItemModel::UpdateTree(obs_frontend_source_list &scene_list,
@@ -450,97 +470,20 @@ bool StvItemModel::MoveIndexByOne(const QModelIndex &index, int delta) {
     parent_item = invisibleRootItem();
   }
 
+  const int row = index.row();
+  const int new_row = row + delta;
+  if (new_row < 0 || new_row >= parent_item->rowCount()) {
+    return false;
+  }
+
   if (parent_item->data(kSortMode).toInt() !=
       static_cast<int>(SortMode::kUser)) {
     parent_item->setData(static_cast<int>(SortMode::kUser), kSortMode);
   }
 
-  const int row = index.row();
-  const int rowCount = parent_item->rowCount();
-  int insertPos = row + delta;
-  // For moving down, insert after the next item (to land at row+1 after
-  // removal).
-  if (delta > 0) {
-    insertPos++;
-  }
-  // Allow insert at end (insertPos == rowCount) but not beyond.
-  if (insertPos < 0 || insertPos > rowCount) {
-    return false;
-  }
-
-  if (item->type() == kScene) {
-    obs_weak_source_t *weak =
-        item->data(kObsScene).value<ObsWeakSourcePtr>().ptr;
-    MoveSceneItem(weak, insertPos, parent_item);
-  } else if (item->type() == kFolder) {
-    MoveSceneFolder(item, insertPos, parent_item);
-  } else {
-    return false;
-  }
-
-  // Remove the original row. When inserting below (delta>0), original stays at
-  // 'row'. When inserting above (delta<0), original shifts down to 'row+1'.
-  if (delta > 0) {
-    parent_item->removeRow(row);
-  } else {
-    parent_item->removeRow(row + 1);
-  }
-
+  // Move the item itself so its data, children and tracked pointer survive.
+  parent_item->insertRow(new_row, parent_item->takeRow(row));
   return true;
-}
-
-void StvItemModel::MoveSceneItem(obs_weak_source_t *source, int row,
-                                 QStandardItem *parent_item) {
-  if (const auto scene_it = scenes_in_tree_.find(source);
-      scene_it != scenes_in_tree_.end()) {
-    assert(scene_it->second->type() == kScene);
-
-    blog(LOG_INFO, "[%s] Moving %s", obs_module_name(),
-         scene_it->second->text().toStdString().c_str());
-
-    StvSceneItem *pItem =
-        new StvSceneItem(scene_it->second->text(), scene_it->first);
-    parent_item->insertRow(row, pItem);
-    AddChildToUserOrder(parent_item, pItem);
-
-    // Old item removed when returning true.
-
-    scene_it->second = pItem;
-  } else {
-    blog(LOG_WARNING, "[%s] Couldn't find item to move in Scene Tree View",
-         obs_module_name());
-  }
-}
-
-void StvItemModel::MoveSceneFolder(QStandardItem *item, int row,
-                                   QStandardItem *parent_item) {
-  assert(item->type() == kFolder);
-  blog(LOG_INFO, "[%s] Moving %s", obs_module_name(),
-       item->text().toStdString().c_str());
-
-  // Check that name is unique.
-  QString new_name = CreateUniqueFolderName(item, parent_item);
-
-  StvFolderItem *new_item = new StvFolderItem(new_name);
-  new_item->setData(item->data(kSortMode), kSortMode);
-  new_item->setData(item->data(kUserOrder), kUserOrder);
-
-  parent_item->insertRow(row, new_item);
-  AddChildToUserOrder(parent_item, new_item);
-
-  for (int sub_row = 0; sub_row < item->rowCount(); ++sub_row) {
-    QStandardItem *sub_item = item->child(sub_row);
-
-    assert(sub_item->type() == kFolder || sub_item->type() == kScene);
-
-    if (sub_item->type() == kFolder) {
-      MoveSceneFolder(sub_item, sub_row, new_item);
-    } else {
-      obs_weak_source_t *weak =
-          sub_item->data(kObsScene).value<ObsWeakSourcePtr>().ptr;
-      MoveSceneItem(weak, sub_row, new_item);
-    }
-  }
 }
 
 OBSDataAutoRelease StvItemModel::SerializeItem(QStandardItem &item,
