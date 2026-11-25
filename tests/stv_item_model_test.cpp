@@ -312,8 +312,9 @@ class StvItemModelTest : public QObject {
     QCOMPARE(model.CreateUniqueFolderName(first, root), QString("Folder"));
   }
 
-  // Drag and drop copies the item to its target; the view then removes the
-  // original row. Known quirk: dropping onto a folder inserts at its top.
+  // The model moves the dragged items itself and returns false so the view
+  // does not also remove the source rows. Known quirk: dropping onto a folder
+  // inserts at its top.
   void DropMimeDataMovesSceneIntoFolder() {
     fake_obs::CreateScene("A");
     fake_obs::CreateScene("B");
@@ -323,10 +324,111 @@ class StvItemModelTest : public QObject {
     model.LoadSceneTree(saved, kCollection);
 
     std::unique_ptr<QMimeData> mime(model.mimeData({model.index(1, 0)}));
-    QVERIFY(model.dropMimeData(mime.get(), Qt::MoveAction, -1, 0,
-                               model.index(0, 0)));
-    model.removeRow(1);
+    QVERIFY(!model.dropMimeData(mime.get(), Qt::MoveAction, -1, 0,
+                                model.index(0, 0)));
     QCOMPARE(Dump(model), QString("F[B,A]"));
+  }
+
+  void DropMimeDataReordersWithinTheSameParent() {
+    fake_obs::CreateScene("A");
+    fake_obs::CreateScene("B");
+    fake_obs::CreateScene("C");
+    StvItemModel model;
+    OBSDataAutoRelease saved =
+        SavedTree({SceneEntry("A"), SceneEntry("B"), SceneEntry("C")});
+    model.LoadSceneTree(saved, kCollection);
+
+    std::unique_ptr<QMimeData> down(model.mimeData({model.index(0, 0)}));
+    model.dropMimeData(down.get(), Qt::MoveAction, 3, 0, QModelIndex());
+    QCOMPARE(Dump(model), QString("B,C,A"));
+
+    std::unique_ptr<QMimeData> up(model.mimeData({model.index(2, 0)}));
+    model.dropMimeData(up.get(), Qt::MoveAction, 1, 0, QModelIndex());
+    QCOMPARE(Dump(model), QString("B,A,C"));
+  }
+
+  // Dragging a folder together with a scene inside it moves the folder once
+  // and leaves the scene where it is within the folder.
+  void DropMimeDataDoesNotDuplicateSceneDraggedWithItsFolder() {
+    fake_obs::CreateScene("A");
+    fake_obs::CreateScene("B");
+    StvItemModel model;
+    OBSDataAutoRelease saved =
+        SavedTree({FolderEntry("F", {"A"}), FolderEntry("G", {"B"})});
+    model.LoadSceneTree(saved, kCollection);
+
+    const QModelIndex folder = model.index(0, 0);
+    std::unique_ptr<QMimeData> mime(
+        model.mimeData({folder, model.index(0, 0, folder)}));
+    model.dropMimeData(mime.get(), Qt::MoveAction, 0, 0, model.index(1, 0));
+    QCOMPARE(Dump(model), QString("G[F[A],B]"));
+  }
+
+  void DropMimeDataRenamesFolderThatClashesInItsNewParent() {
+    StvItemModel model;
+    OBSDataAutoRelease saved =
+        SavedTree({FolderEntry("F", {}), FolderEntry("G", {})});
+    model.LoadSceneTree(saved, kCollection);
+    auto *inner = new StvFolderItem("F");
+    model.item(1)->appendRow(inner);
+
+    std::unique_ptr<QMimeData> mime(model.mimeData({inner->index()}));
+    model.dropMimeData(mime.get(), Qt::MoveAction, 0, 0, QModelIndex());
+    QCOMPARE(Dump(model), QString("F 1[],F[],G[]"));
+  }
+
+  void DropMimeDataIgnoresDropOfFolderIntoItself() {
+    StvItemModel model;
+    OBSDataAutoRelease saved = SavedTree({FolderEntry("F", {})});
+    model.LoadSceneTree(saved, kCollection);
+
+    std::unique_ptr<QMimeData> mime(model.mimeData({model.index(0, 0)}));
+    model.dropMimeData(mime.get(), Qt::MoveAction, 0, 0, model.index(0, 0));
+    QCOMPARE(Dump(model), QString("F[]"));
+  }
+
+  // A placeholder has no scene behind it; moving it must move only it.
+  void MoveIndexByOneMovesPlaceholderWithoutTouchingSiblings() {
+    fake_obs::CreateScene("A");
+    fake_obs::CreateScene("B");
+    StvItemModel model;
+    OBSDataAutoRelease saved =
+        SavedTree({SceneEntry("A"), SceneEntry("Missing"), SceneEntry("B")});
+    model.LoadSceneTree(saved, kCollection);
+
+    QVERIFY(model.MoveIndexByOne(model.index(1, 0), -1));
+    QCOMPARE(Dump(model), QString("Missing,A,B"));
+    QVERIFY(model.MoveIndexByOne(model.index(0, 0), +1));
+    QCOMPARE(Dump(model), QString("A,Missing,B"));
+
+    Sync(model);
+    QCOMPARE(Dump(model), QString("A,Missing,B"));
+  }
+
+  void MovedFolderKeepsPlaceholderChildrenAndExpansion() {
+    fake_obs::CreateScene("A");
+    fake_obs::CreateScene("B");
+    fake_obs::CreateScene("C");
+    StvItemModel model;
+    OBSDataAutoRelease saved = SavedTree(
+        {FolderEntry("F", {"A", "Missing", "B"}, 0, true), SceneEntry("C")});
+    model.LoadSceneTree(saved, kCollection);
+
+    QVERIFY(model.MoveIndexByOne(model.index(0, 0), +1));
+    QCOMPARE(Dump(model), QString("C,F[A,Missing,B]"));
+    QVERIFY(model.item(1)->data(StvItemModel::kExpanded).toBool());
+  }
+
+  void MoveKeepsTheSameItemObject() {
+    fake_obs::CreateScene("A");
+    fake_obs::CreateScene("B");
+    StvItemModel model;
+    OBSDataAutoRelease saved = SavedTree({SceneEntry("A"), SceneEntry("B")});
+    model.LoadSceneTree(saved, kCollection);
+
+    QStandardItem *a = model.item(0);
+    QVERIFY(model.MoveIndexByOne(model.index(0, 0), +1));
+    QCOMPARE(model.item(1), a);
   }
 };
 
